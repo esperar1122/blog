@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { Article, Category, Tag, PaginationParams, PaginationResult } from 'blog-shared'
-import { getArticles, getArticle, getCategories, getTags } from '@/api/article'
+import { getArticles, getArticle, getCategories, getTags, createArticle, updateArticle, publishArticle } from '@/api/article'
 
 export const useArticleStore = defineStore('article', () => {
   const articles = ref<Article[]>([])
@@ -33,11 +33,46 @@ export const useArticleStore = defineStore('article', () => {
   }
 
   // 获取文章详情
-  async function fetchArticleDetail(id: number) {
+  async function fetchArticleDetail(id: number | string) {
     try {
-      const article = await getArticle(id)
+      const article = await getArticle(Number(id))
       currentArticle.value = article
       return Promise.resolve(article)
+    } catch (error) {
+      return Promise.reject(error)
+    }
+  }
+
+  // 获取单篇文章
+  async function fetchArticle(id: number | string) {
+    return fetchArticleDetail(id)
+  }
+
+  // 创建文章
+  async function createNewArticle(data: any) {
+    try {
+      const article = await createArticle(data)
+      return Promise.resolve(article)
+    } catch (error) {
+      return Promise.reject(error)
+    }
+  }
+
+  // 更新文章
+  async function updateExistingArticle(id: number, data: any) {
+    try {
+      const article = await updateArticle(id, data)
+      return Promise.resolve(article)
+    } catch (error) {
+      return Promise.reject(error)
+    }
+  }
+
+  // 发布文章
+  async function publishExistingArticle(id: number) {
+    try {
+      await publishArticle(id)
+      return Promise.resolve()
     } catch (error) {
       return Promise.reject(error)
     }
@@ -73,6 +108,10 @@ export const useArticleStore = defineStore('article', () => {
     pagination,
     fetchArticles,
     fetchArticleDetail,
+    fetchArticle,
+    createArticle: createNewArticle,
+    updateArticle: updateExistingArticle,
+    publishArticle: publishExistingArticle,
     fetchCategories,
     fetchTags
   }
