@@ -1,0 +1,36 @@
+{
+  "name": "blog-system",
+  "version": "1.0.0",
+  "description": "博客系统 - 前后端分离项目",
+  "private": true,
+  "workspaces": [
+    "blog-frontend",
+    "blog-shared"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "dev:frontend": "cd blog-frontend && npm run dev",
+    "dev:backend": "cd blog-backend && mvn spring-boot:run",
+    "build": "npm run build:shared && npm run build:frontend",
+    "build:frontend": "cd blog-frontend && npm run build",
+    "build:backend": "cd blog-backend && mvn clean package",
+    "build:shared": "cd blog-shared && npm run build",
+    "test": "npm run test:frontend && npm run test:backend",
+    "test:frontend": "cd blog-frontend && npm run test",
+    "test:backend": "cd blog-backend && mvn test",
+    "lint": "npm run lint:frontend",
+    "lint:frontend": "cd blog-frontend && npm run lint",
+    "clean": "rimraf node_modules blog-frontend/node_modules blog-shared/node_modules blog-frontend/dist blog-shared/dist",
+    "install:all": "npm install && npm run install:frontend && npm run install:shared",
+    "install:frontend": "cd blog-frontend && npm install",
+    "install:shared": "cd blog-shared && npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "rimraf": "^5.0.5"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}
