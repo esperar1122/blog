@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { useUserStore } from '@/stores/user'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -46,6 +47,12 @@ const router = createRouter({
       meta: { title: '个人中心', requiresAuth: true }
     },
     {
+      path: '/admin/users',
+      name: 'admin-users',
+      component: () => import('@/views/admin/UserManagement.vue'),
+      meta: { title: '用户管理', requiresAuth: true, requiresAdmin: true }
+    },
+    {
       path: '/:pathMatch(.*)*',
       name: 'not-found',
       component: () => import('@/views/NotFoundView.vue'),
@@ -55,15 +62,35 @@ const router = createRouter({
 })
 
 // 路由守卫
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   // 设置页面标题
   document.title = `${to.meta.title} - 博客系统`
 
   // 检查是否需要登录
   if (to.meta.requiresAuth) {
-    const token = localStorage.getItem('token')
-    if (!token) {
+    const userStore = useUserStore()
+
+    // 如果用户信息不存在，尝试初始化
+    if (!userStore.userInfo) {
+      try {
+        await userStore.initializeUser()
+      } catch (error) {
+        console.error('初始化用户信息失败:', error)
+        next({ name: 'login', query: { redirect: to.fullPath } })
+        return
+      }
+    }
+
+    // 检查用户是否已登录
+    if (!userStore.isLoggedIn) {
       next({ name: 'login', query: { redirect: to.fullPath } })
+      return
+    }
+
+    // 检查是否需要管理员权限
+    if (to.meta.requiresAdmin && !userStore.isAdmin) {
+      // 可以重定向到首页或显示无权限页面
+      next({ name: 'home' })
       return
     }
   }
