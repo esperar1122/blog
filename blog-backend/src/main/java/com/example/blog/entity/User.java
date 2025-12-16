@@ -1,6 +1,7 @@
 package com.example.blog.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.example.blog.enums.UserRole;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -84,5 +85,15 @@ public class User {
 
     public boolean isActive() {
         return Status.ACTIVE.getValue().equals(this.status);
+    }
+
+    /**
+     * 获取用户角色枚举
+     */
+    public UserRole getUserRole() {
+        if (role == null) {
+            return UserRole.USER; // 默认为普通用户
+        }
+        return UserRole.fromCode(role);
     }
 }

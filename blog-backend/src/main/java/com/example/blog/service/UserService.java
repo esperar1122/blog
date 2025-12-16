@@ -3,8 +3,10 @@ package com.example.blog.service;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.blog.entity.User;
+import com.example.blog.enums.UserRole;
 
 import java.util.List;
+import java.util.Map;
 
 public interface UserService {
 
@@ -47,4 +49,46 @@ public interface UserService {
     boolean resetPassword(Long id, String newPassword);
 
     void updateLastLoginTime(Long id);
+
+    // 权限管理相关方法
+
+    /**
+     * 获取所有用户（管理员）
+     */
+    Page<User> getAllUsers(Page<User> page, String keyword, UserRole role);
+
+    /**
+     * 更新用户角色（管理员）
+     */
+    void updateUserRole(Long userId, UserRole role);
+
+    /**
+     * 更新用户状态（管理员）
+     */
+    void updateUserStatus(Long userId, boolean enabled);
+
+    /**
+     * 获取总用户数
+     */
+    int getTotalUserCount();
+
+    /**
+     * 获取活跃用户数
+     */
+    int getActiveUserCount();
+
+    /**
+     * 根据角色获取用户数
+     */
+    int getUserCountByRole(UserRole role);
+
+    /**
+     * 批量更新用户角色（管理员）
+     */
+    void batchUpdateUserRole(List<Long> userIds, UserRole role);
+
+    /**
+     * 获取系统统计信息（管理员）
+     */
+    Map<String, Object> getSystemStats();
 }

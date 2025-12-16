@@ -53,4 +53,14 @@ public interface ArticleService {
     int countArticlesByAuthor(Long authorId, String status);
 
     int countAllArticles(String status);
+
+    /**
+     * 获取总文章数
+     */
+    int getTotalArticleCount();
+
+    /**
+     * 获取已发布文章数
+     */
+    int getPublishedArticleCount();
 }

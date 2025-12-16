@@ -343,4 +343,16 @@ public class ArticleServiceImpl implements ArticleService {
             }
         }
     }
+
+    @Override
+    public int getTotalArticleCount() {
+        return articleMapper.selectCount(null);
+    }
+
+    @Override
+    public int getPublishedArticleCount() {
+        QueryWrapper<Article> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("status", "PUBLISHED");
+        return articleMapper.selectCount(queryWrapper);
+    }
 }

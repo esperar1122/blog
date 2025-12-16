@@ -3,12 +3,16 @@ package com.example.blog.controller;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.blog.common.Result;
 import com.example.blog.entity.Article;
+import com.example.blog.enums.UserRole;
+import com.example.blog.security.RequireRole;
+import com.example.blog.security.RequireAdmin;
 import com.example.blog.service.ArticleService;
 import com.example.blog.util.JwtUtil;
 import com.example.blog.dto.CreateArticleRequest;
 import com.example.blog.dto.UpdateArticleRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
@@ -60,6 +64,8 @@ public class ArticleController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('USER')")
+    @RequireRole(UserRole.USER)
     public Result<Article> createArticle(@Valid @RequestBody CreateArticleRequest request, HttpServletRequest httpRequest) {
         Long currentUserId = getCurrentUserId(httpRequest);
 
@@ -77,6 +83,8 @@ public class ArticleController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('USER')")
+    @RequireRole(UserRole.USER)
     public Result<Article> updateArticle(
             @PathVariable Long id,
             @Valid @RequestBody UpdateArticleRequest request,
@@ -96,6 +104,8 @@ public class ArticleController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @RequireAdmin
     public Result<Void> deleteArticle(@PathVariable Long id, HttpServletRequest request) {
         Long currentUserId = getCurrentUserId(request);
         articleService.deleteArticle(id, currentUserId);
@@ -103,6 +113,8 @@ public class ArticleController {
     }
 
     @PostMapping("/{id}/publish")
+    @PreAuthorize("hasRole('USER')")
+    @RequireRole(UserRole.USER)
     public Result<Void> publishArticle(@PathVariable Long id, HttpServletRequest request) {
         Long currentUserId = getCurrentUserId(request);
         articleService.publishArticle(id, currentUserId);
@@ -110,6 +122,8 @@ public class ArticleController {
     }
 
     @PostMapping("/{id}/unpublish")
+    @PreAuthorize("hasRole('USER')")
+    @RequireRole(UserRole.USER)
     public Result<Void> unpublishArticle(@PathVariable Long id, HttpServletRequest request) {
         Long currentUserId = getCurrentUserId(request);
         articleService.unpublishArticle(id, currentUserId);
@@ -117,6 +131,8 @@ public class ArticleController {
     }
 
     @PostMapping("/{id}/like")
+    @PreAuthorize("hasRole('USER')")
+    @RequireRole(UserRole.USER)
     public Result<Map<String, Object>> likeArticle(@PathVariable Long id, HttpServletRequest request) {
         Long currentUserId = getCurrentUserId(request);
         boolean liked = articleService.toggleLike(id, currentUserId);
