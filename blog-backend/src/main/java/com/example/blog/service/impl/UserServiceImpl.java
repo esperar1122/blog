@@ -92,6 +92,35 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
+    public User loginByUsernameOrEmail(String loginIdentifier, String password) {
+        if (loginIdentifier == null || loginIdentifier.trim().isEmpty()) {
+            throw new BusinessException("登录标识不能为空");
+        }
+
+        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("username", loginIdentifier)
+                   .or()
+                   .eq("email", loginIdentifier);
+
+        User user = userMapper.selectOne(queryWrapper);
+        if (user == null) {
+            throw new BusinessException("用户不存在");
+        }
+
+        if (!User.Status.ACTIVE.getValue().equals(user.getStatus())) {
+            throw new BusinessException("账号已被禁用");
+        }
+
+        if (!passwordEncoder.matches(password, user.getPassword())) {
+            throw new BusinessException("密码错误");
+        }
+
+        updateLastLoginTime(user.getId());
+        return user;
+    }
+
+    @Override
+    @Transactional
     public User updateUser(Long id, User user) {
         User existingUser = getUserById(id);
 

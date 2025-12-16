@@ -1,215 +1,277 @@
 package com.example.blog.controller;
 
-import com.example.blog.common.Result;
 import com.example.blog.dto.LoginRequest;
+import com.example.blog.dto.RefreshTokenRequest;
 import com.example.blog.dto.RegisterRequest;
 import com.example.blog.entity.User;
+import com.example.blog.security.JwtTokenProvider;
+import com.example.blog.service.LoginAttemptService;
 import com.example.blog.service.UserService;
-import com.example.blog.util.JwtUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import java.util.HashMap;
-import java.util.Map;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@ExtendWith(MockitoExtension.class)
+@WebMvcTest(AuthController.class)
+@DisplayName("AuthController 安全测试")
 class AuthControllerTest {
 
-    @Mock
+    @Autowired
+    private MockMvc mockMvc;
+
+    @MockBean
     private UserService userService;
 
-    @Mock
-    private JwtUtil jwtUtil;
+    @MockBean
+    private JwtTokenProvider jwtTokenProvider;
 
-    @InjectMocks
-    private AuthController authController;
+    @MockBean
+    private LoginAttemptService loginAttemptService;
 
-    private MockMvc mockMvc;
+    @Autowired
     private ObjectMapper objectMapper;
+
     private User testUser;
+    private LoginRequest loginRequest;
+    private RegisterRequest registerRequest;
+    private RefreshTokenRequest refreshTokenRequest;
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(authController).build();
-        objectMapper = new ObjectMapper();
-
         testUser = new User();
         testUser.setId(1L);
         testUser.setUsername("testuser");
         testUser.setEmail("test@example.com");
         testUser.setNickname("测试用户");
-        testUser.setRole(User.Role.USER.getValue());
-        testUser.setStatus(User.Status.ACTIVE.getValue());
-    }
+        testUser.setRole("user");
 
-    @Test
-    void testRegister_Success() throws Exception {
-        // 准备测试数据
-        RegisterRequest registerRequest = new RegisterRequest();
-        registerRequest.setUsername("testuser");
-        registerRequest.setEmail("test@example.com");
-        registerRequest.setPassword("password123");
-        registerRequest.setNickname("测试用户");
-
-        when(userService.register(anyString(), anyString(), anyString(), anyString()))
-                .thenReturn(testUser);
-        when(jwtUtil.generateToken(anyString(), any(), anyString()))
-                .thenReturn("test-jwt-token");
-
-        // 执行测试
-        mockMvc.perform(post("/api/v1/auth/register")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(registerRequest)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.message").value("注册成功"))
-                .andExpect(jsonPath("$.data.token").value("test-jwt-token"))
-                .andExpect(jsonPath("$.data.user.username").value("testuser"))
-                .andExpect(jsonPath("$.data.user.email").value("test@example.com"));
-    }
-
-    @Test
-    void testRegister_ValidationError() throws Exception {
-        // 准备无效的测试数据（密码太短）
-        RegisterRequest registerRequest = new RegisterRequest();
-        registerRequest.setUsername("testuser");
-        registerRequest.setEmail("test@example.com");
-        registerRequest.setPassword("123"); // 密码太短，不符合8位要求
-        registerRequest.setNickname("测试用户");
-
-        // 执行测试
-        mockMvc.perform(post("/api/v1/auth/register")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(registerRequest)))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    void testLogin_Success() throws Exception {
-        // 准备测试数据
-        LoginRequest loginRequest = new LoginRequest();
+        loginRequest = new LoginRequest();
         loginRequest.setUsername("testuser");
         loginRequest.setPassword("password123");
 
-        when(userService.login(anyString(), anyString()))
-                .thenReturn(testUser);
-        when(jwtUtil.generateToken(anyString(), any(), anyString()))
-                .thenReturn("test-jwt-token");
+        registerRequest = new RegisterRequest();
+        registerRequest.setUsername("newuser");
+        registerRequest.setEmail("new@example.com");
+        registerRequest.setPassword("password123");
+        registerRequest.setNickname("新用户");
 
-        // 执行测试
+        refreshTokenRequest = new RefreshTokenRequest();
+        refreshTokenRequest.setRefreshToken("refresh-token");
+    }
+
+    @Test
+    @DisplayName("用户登录成功 - 正常流程")
+    void login_Success() throws Exception {
+        // 准备测试数据
+        when(loginAttemptService.isLocked(anyString(), anyString())).thenReturn(false);
+        when(userService.loginByUsernameOrEmail(anyString(), anyString())).thenReturn(testUser);
+        when(jwtTokenProvider.generateAccessToken(anyString(), anyLong(), anyString()))
+                .thenReturn("access-token");
+        when(jwtTokenProvider.generateRefreshToken(anyString(), anyLong()))
+                .thenReturn("refresh-token");
+
+        // 执行请求并验证结果
         mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(loginRequest)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.message").value("登录成功"))
-                .andExpect(jsonPath("$.data.token").value("test-jwt-token"))
+                .andExpect(jsonPath("$.data.accessToken").value("access-token"))
+                .andExpect(jsonPath("$.data.tokenType").value("Bearer"))
                 .andExpect(jsonPath("$.data.user.username").value("testuser"));
+
+        // 验证服务调用
+        verify(loginAttemptService).isLocked("testuser", "127.0.0.1");
+        verify(userService).loginByUsernameOrEmail("testuser", "password123");
+        verify(jwtTokenProvider).generateAccessToken("testuser", 1L, "user");
+        verify(jwtTokenProvider).generateRefreshToken("testuser", 1L);
+        verify(loginAttemptService).clearFailedAttempts("testuser", "127.0.0.1");
     }
 
     @Test
-    void testLogin_ValidationError() throws Exception {
-        // 准备无效的测试数据（空用户名）
-        LoginRequest loginRequest = new LoginRequest();
-        loginRequest.setUsername("");
-        loginRequest.setPassword("password123");
+    @DisplayName("用户登录失败 - 账户已锁定")
+    void login_AccountLocked() throws Exception {
+        // 准备测试数据
+        when(loginAttemptService.isLocked(anyString(), anyString())).thenReturn(true);
+        when(loginAttemptService.getRemainingLockTime(anyString(), anyString())).thenReturn(30L);
 
-        // 执行测试
+        // 执行请求并验证结果
         mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(loginRequest)))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isLocked())
+                .andExpect(jsonPath("$.code").value(423))
+                .andExpect(jsonPath("$.message").value("账户已锁定，请 30 分钟后重试"));
+
+        // 验证服务调用
+        verify(loginAttemptService).isLocked("testuser", "127.0.0.1");
+        verify(loginAttemptService).getRemainingLockTime("testuser", "127.0.0.1");
+        verify(userService, never()).loginByUsernameOrEmail(anyString(), anyString());
     }
 
     @Test
-    void testLogout_Success() throws Exception {
-        // 执行测试
+    @DisplayName("用户登录失败 - 用户名或密码错误")
+    void login_InvalidCredentials() throws Exception {
+        // 准备测试数据
+        when(loginAttemptService.isLocked(anyString(), anyString())).thenReturn(false);
+        when(userService.loginByUsernameOrEmail(anyString(), anyString()))
+                .thenThrow(new RuntimeException("用户名或密码错误"));
+        when(loginAttemptService.getAttemptCount(anyString(), anyString())).thenReturn(1);
+
+        // 执行请求并验证结果
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(loginRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message").value("用户名或密码错误"));
+
+        // 验证服务调用
+        verify(loginAttemptService).recordFailedAttempt("testuser", "127.0.0.1");
+    }
+
+    @Test
+    @DisplayName("用户登录失败 - 次数过多导致锁定")
+    void login_TooManyAttempts_ThenLocked() throws Exception {
+        // 准备测试数据
+        when(loginAttemptService.isLocked(anyString(), anyString()))
+                .thenReturn(false)  // 第一次检查未锁定
+                .thenReturn(true); // 第二次检查已锁定
+        when(userService.loginByUsernameOrEmail(anyString(), anyString()))
+                .thenThrow(new RuntimeException("用户名或密码错误"));
+        when(loginAttemptService.getAttemptCount(anyString(), anyString())).thenReturn(5);
+        when(loginAttemptService.getRemainingLockTime(anyString(), anyString())).thenReturn(30L);
+
+        // 执行请求并验证结果
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(loginRequest)))
+                .andExpect(status().isLocked())
+                .andExpect(jsonPath("$.code").value(423))
+                .andExpect(jsonPath("$.message").value("登录失败次数过多，账户已锁定 30 分钟"));
+
+        // 验证服务调用
+        verify(loginAttemptService).recordFailedAttempt("testuser", "127.0.0.1");
+        verify(loginAttemptService).getRemainingLockTime("testuser", "127.0.0.1");
+    }
+
+    @Test
+    @DisplayName("刷新令牌成功")
+    void refreshToken_Success() throws Exception {
+        // 准备测试数据
+        when(jwtTokenProvider.extractUsername(anyString())).thenReturn("testuser");
+        when(jwtTokenProvider.extractUserId(anyString())).thenReturn(1L);
+        when(jwtTokenProvider.validateRefreshToken(anyString(), anyString())).thenReturn(true);
+        when(userService.getUserByUsername(anyString())).thenReturn(testUser);
+        when(jwtTokenProvider.generateAccessToken(anyString(), anyLong(), anyString()))
+                .thenReturn("new-access-token");
+        when(jwtTokenProvider.generateRefreshToken(anyString(), anyLong()))
+                .thenReturn("new-refresh-token");
+
+        // 执行请求并验证结果
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(refreshTokenRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.message").value("令牌刷新成功"))
+                .andExpect(jsonPath("$.data.accessToken").value("new-access-token"));
+
+        // 验证服务调用
+        verify(jwtTokenProvider).extractUsername("refresh-token");
+        verify(jwtTokenProvider).validateRefreshToken("refresh-token", "testuser");
+        verify(jwtTokenProvider).revokeRefreshToken("testuser");
+        verify(jwtTokenProvider).generateAccessToken("testuser", 1L, "user");
+    }
+
+    @Test
+    @DisplayName("刷新令牌失败 - 无效的刷新令牌")
+    void refreshToken_InvalidToken() throws Exception {
+        // 准备测试数据
+        when(jwtTokenProvider.extractUsername(anyString())).thenReturn("testuser");
+        when(jwtTokenProvider.extractUserId(anyString())).thenReturn(1L);
+        when(jwtTokenProvider.validateRefreshToken(anyString(), anyString())).thenReturn(false);
+
+        // 执行请求并验证结果
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(refreshTokenRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message").value("无效的刷新令牌"));
+
+        // 验证服务调用
+        verify(jwtTokenProvider).validateRefreshToken("refresh-token", "testuser");
+        verify(jwtTokenProvider, never()).generateAccessToken(anyString(), anyLong(), anyString());
+    }
+
+    @Test
+    @DisplayName("用户登出成功")
+    void logout_Success() throws Exception {
+        // 准备测试数据
+        when(jwtTokenProvider.extractUsername(anyString())).thenReturn("testuser");
+
+        // 执行请求并验证结果
         mockMvc.perform(post("/api/v1/auth/logout")
-                        .header("Authorization", "Bearer test-jwt-token"))
+                        .header("Authorization", "Bearer access-token"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.message").value("登出成功"));
+
+        // 验证服务调用
+        verify(jwtTokenProvider).extractUsername("access-token");
+        verify(jwtTokenProvider).blacklistToken("access-token");
+        verify(jwtTokenProvider).revokeRefreshToken("testuser");
     }
 
     @Test
-    void testGetCurrentUser_Success() throws Exception {
-        when(userService.getUserByUsername(anyString()))
-                .thenReturn(testUser);
-        when(jwtUtil.extractUsername(anyString()))
-                .thenReturn("testuser");
+    @DisplayName("获取当前用户信息成功")
+    void getCurrentUser_Success() throws Exception {
+        // 准备测试数据
+        when(jwtTokenProvider.validateAccessToken(anyString())).thenReturn(true);
+        when(jwtTokenProvider.extractUsername(anyString())).thenReturn("testuser");
+        when(userService.getUserByUsername(anyString())).thenReturn(testUser);
 
-        // 执行测试
+        // 执行请求并验证结果
         mockMvc.perform(get("/api/v1/auth/me")
-                        .header("Authorization", "Bearer test-jwt-token"))
+                        .header("Authorization", "Bearer access-token"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.username").value("testuser"))
-                .andExpect(jsonPath("$.data.email").value("test@example.com"));
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.username").value("testuser"));
+
+        // 验证服务调用
+        verify(jwtTokenProvider).validateAccessToken("access-token");
+        verify(jwtTokenProvider).extractUsername("access-token");
+        verify(userService).getUserByUsername("testuser");
     }
 
     @Test
-    void testCheckUsername_Exists() throws Exception {
-        when(userService.existsByUsername(anyString()))
-                .thenReturn(true);
+    @DisplayName("获取当前用户信息失败 - 无效令牌")
+    void getCurrentUser_InvalidToken() throws Exception {
+        // 准备测试数据
+        when(jwtTokenProvider.validateAccessToken(anyString())).thenReturn(false);
 
-        // 执行测试
-        mockMvc.perform(post("/api/v1/auth/check-username")
-                        .param("username", "testuser"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data").value(true));
-    }
+        // 执行请求并验证结果
+        mockMvc.perform(get("/api/v1/auth/me")
+                        .header("Authorization", "Bearer invalid-token"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message").value("无效或已过期的认证令牌"));
 
-    @Test
-    void testCheckUsername_NotExists() throws Exception {
-        when(userService.existsByUsername(anyString()))
-                .thenReturn(false);
-
-        // 执行测试
-        mockMvc.perform(post("/api/v1/auth/check-username")
-                        .param("username", "newuser"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data").value(false));
-    }
-
-    @Test
-    void testCheckEmail_Exists() throws Exception {
-        when(userService.existsByEmail(anyString()))
-                .thenReturn(true);
-
-        // 执行测试
-        mockMvc.perform(post("/api/v1/auth/check-email")
-                        .param("email", "test@example.com"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data").value(true));
-    }
-
-    @Test
-    void testCheckEmail_NotExists() throws Exception {
-        when(userService.existsByEmail(anyString()))
-                .thenReturn(false);
-
-        // 执行测试
-        mockMvc.perform(post("/api/v1/auth/check-email")
-                        .param("email", "new@example.com"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data").value(false));
+        // 验证服务调用
+        verify(jwtTokenProvider).validateAccessToken("invalid-token");
+        verify(jwtTokenProvider, never()).extractUsername(anyString());
+        verify(userService, never()).getUserByUsername(anyString());
     }
 }

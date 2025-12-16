@@ -18,6 +18,8 @@ public interface UserService {
 
     User login(String username, String password);
 
+    User loginByUsernameOrEmail(String loginIdentifier, String password);
+
     User updateUser(Long id, User user);
 
     User updateUserProfile(Long id, String nickname, String bio, String avatar);

@@ -33,8 +33,30 @@ mybatis-plus:
 
 # JWT配置
 jwt:
-  secret: ${JWT_SECRET:mySecretKey123456789mySecretKey123456789}
-  expiration: 86400000 # 24小时
+  secret: ${JWT_SECRET:}  # 必须通过环境变量设置，不允许默认值
+  access-token-expiration: 900000 # 15分钟 (毫秒)
+  refresh-token-expiration: 604800000 # 7天 (毫秒)
+  issuer: blog-system
+
+# Redis配置 (用于令牌黑名单)
+spring:
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+
+# 安全配置
+security:
+  login:
+    max-attempts: ${LOGIN_MAX_ATTEMPTS:5}
+    lock-time: ${LOGIN_LOCK_TIME:30} # 分钟
 
 # 文件上传配置
 file:

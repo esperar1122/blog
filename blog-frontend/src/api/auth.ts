@@ -2,13 +2,16 @@ import request, { post } from './index'
 import type { User } from 'blog-shared'
 
 interface LoginResponse {
-  token: string
+  accessToken: string
+  tokenType: string
+  expiresIn: number
   user: User
 }
 
 interface LoginParams {
   username: string
   password: string
+  rememberMe?: boolean
 }
 
 export interface RegisterParams {
@@ -46,4 +49,9 @@ export function checkUsernameExists(username: string): Promise<boolean> {
 // 检查邮箱是否存在
 export function checkEmailExists(email: string): Promise<boolean> {
   return request.get('/auth/check-email', { params: { email } })
+}
+
+// 刷新令牌
+export function refreshToken(refreshToken: string): Promise<LoginResponse> {
+  return post<LoginResponse>('/auth/refresh', { refreshToken })
 }

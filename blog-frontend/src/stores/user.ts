@@ -1,77 +1,142 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { User } from 'blog-shared'
-import { login, register, logout, getUserInfo, type RegisterParams } from '@/api/auth'
+import { authService } from '@/services/authService'
+import type { RegisterParams, LoginParams } from '@/api/auth'
 
 export const useUserStore = defineStore('user', () => {
-  const token = ref<string | null>(localStorage.getItem('token'))
   const userInfo = ref<User | null>(null)
 
-  const isLoggedIn = computed(() => !!token.value)
-  const isAdmin = computed(() => userInfo.value?.role === 'admin')
+  // 计算属性
+  const isLoggedIn = computed(() => {
+    return authService.isAuthenticated()
+  })
 
-  // 登录
-  async function doLogin(credentials: { username: string; password: string }) {
+  const isAdmin = computed(() => {
+    return userInfo.value?.role === 'admin'
+  })
+
+  const currentUserName = computed(() => {
+    return userInfo.value?.nickname || userInfo.value?.username || ''
+  })
+
+  // 初始化用户信息
+  async function initializeUser() {
     try {
-      const response = await login(credentials)
-      token.value = response.token
-      userInfo.value = response.user
-      localStorage.setItem('token', response.token)
-      return Promise.resolve()
+      const user = authService.getUserInfo()
+      if (user) {
+        userInfo.value = user
+      } else {
+        const currentUser = await authService.getCurrentUser()
+        if (currentUser) {
+          userInfo.value = currentUser
+        }
+      }
     } catch (error) {
-      return Promise.reject(error)
+      console.error('初始化用户信息失败:', error)
+      userInfo.value = null
     }
   }
 
-  // 登出
-  async function doLogout() {
+  // 登录
+  async function login(credentials: LoginParams) {
     try {
-      await logout()
+      const response = await authService.login(credentials)
+      userInfo.value = response.user
+      return response
     } catch (error) {
-      console.error('Logout error:', error)
-    } finally {
-      token.value = null
       userInfo.value = null
-      localStorage.removeItem('token')
+      throw error
     }
   }
 
   // 注册
-  async function doRegister(credentials: RegisterParams) {
+  async function register(credentials: RegisterParams) {
     try {
-      const response = await register(credentials)
-      token.value = response.token
+      const response = await authService.login(credentials)
       userInfo.value = response.user
-      localStorage.setItem('token', response.token)
-      return Promise.resolve()
+      return response
     } catch (error) {
-      return Promise.reject(error)
+      userInfo.value = null
+      throw error
     }
+  }
+
+  // 登出
+  async function logout() {
+    try {
+      await authService.logout()
+    } catch (error) {
+      console.error('登出请求失败:', error)
+    } finally {
+      userInfo.value = null
+    }
+  }
+
+  // 强制登出（用于处理认证错误）
+  function forceLogout() {
+    authService.forceLogout()
+    userInfo.value = null
   }
 
   // 获取用户信息
   async function fetchUserInfo() {
     try {
-      const user = await getUserInfo()
+      const user = await authService.getCurrentUser()
       userInfo.value = user
-      return Promise.resolve(user)
+      return user
     } catch (error) {
-      // 如果获取用户信息失败，清除token
-      token.value = null
       userInfo.value = null
-      localStorage.removeItem('token')
-      return Promise.reject(error)
+      throw error
     }
   }
 
+  // 更新用户信息
+  function updateUserInfo(user: User) {
+    userInfo.value = user
+  }
+
+  // 检查用户权限
+  function hasPermission(permission: string): boolean {
+    if (!userInfo.value) return false
+
+    // 管理员拥有所有权限
+    if (userInfo.value.role === 'admin') return true
+
+    // 根据实际权限系统实现
+    // 这里只是示例
+    return false
+  }
+
+  // 检查用户是否可以编辑文章
+  function canEditArticle(articleAuthorId: number): boolean {
+    if (!userInfo.value) return false
+
+    // 管理员可以编辑所有文章
+    if (userInfo.value.role === 'admin') return true
+
+    // 作者可以编辑自己的文章
+    return userInfo.value.id === articleAuthorId
+  }
+
   return {
-    token,
+    // 状态
     userInfo,
+
+    // 计算属性
     isLoggedIn,
     isAdmin,
-    doLogin,
-    doRegister,
-    doLogout,
-    fetchUserInfo
+    currentUserName,
+
+    // 方法
+    initializeUser,
+    login,
+    register,
+    logout,
+    forceLogout,
+    fetchUserInfo,
+    updateUserInfo,
+    hasPermission,
+    canEditArticle
   }
 })
