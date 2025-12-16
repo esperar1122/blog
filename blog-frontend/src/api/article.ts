@@ -1,18 +1,31 @@
 import { get, post, put, del } from './index'
-import type { Article, Category, Tag, PaginationParams, PaginationResult } from 'blog-shared'
+import type {
+  Article,
+  Category,
+  Tag,
+  ArticleListResponse,
+  ArticleDetailResponse,
+  ArticleQueryParams
+} from '@/types/article'
 
 // 获取文章列表
-export function getArticles(params: PaginationParams & {
-  categoryId?: number
-  tagId?: number
-  keyword?: string
-}): Promise<PaginationResult<Article>> {
-  return get<PaginationResult<Article>>('/articles', params)
+export function getArticles(params: ArticleQueryParams): Promise<ArticleListResponse> {
+  return get<ArticleListResponse>('/api/v1/articles', params)
 }
 
 // 获取文章详情
-export function getArticle(id: number): Promise<Article> {
-  return get<Article>(`/articles/${id}`)
+export function getArticle(id: number): Promise<ArticleDetailResponse> {
+  return get<ArticleDetailResponse>(`/api/v1/articles/${id}`)
+}
+
+// 搜索文章
+export function searchArticles(params: ArticleQueryParams): Promise<ArticleListResponse> {
+  return get<ArticleListResponse>('/api/v1/articles/search', params)
+}
+
+// 获取我的文章
+export function getMyArticles(params: ArticleQueryParams): Promise<ArticleListResponse> {
+  return get<ArticleListResponse>('/api/v1/articles/my-articles', params)
 }
 
 // 获取分类列表

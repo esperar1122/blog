@@ -2,6 +2,9 @@ package com.example.blog.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.blog.common.Result;
+import com.example.blog.dto.request.ArticleQueryRequest;
+import com.example.blog.dto.response.ArticleListResponse;
+import com.example.blog.dto.response.ArticleDetailResponse;
 import com.example.blog.entity.Article;
 import com.example.blog.enums.UserRole;
 import com.example.blog.security.RequireRole;
@@ -22,7 +25,7 @@ import java.util.Map;
 
 @Slf4j
 @RestController
-@RequestMapping("/articles")
+@RequestMapping("/api/v1/articles")
 @RequiredArgsConstructor
 public class ArticleController {
 
@@ -30,16 +33,8 @@ public class ArticleController {
     private final JwtUtil jwtUtil;
 
     @GetMapping
-    public Result<Page<Article>> getArticles(
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) Long categoryId,
-            @RequestParam(required = false) Long tagId,
-            @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) String status) {
-
-        Page<Article> pageParam = new Page<>(page, size);
-        Page<Article> result = articleService.getArticlesWithPagination(pageParam, categoryId, tagId, keyword, status);
+    public Result<ArticleListResponse> getArticles(@Valid ArticleQueryRequest request) {
+        ArticleListResponse result = articleService.getArticleList(request);
         return Result.success(result);
     }
 
@@ -57,17 +52,17 @@ public class ArticleController {
     }
 
     @GetMapping("/{id}")
-    public Result<Article> getArticle(@PathVariable Long id, HttpServletRequest request) {
-        Article article = articleService.getArticleWithDetails(id);
-        articleService.incrementViewCount(id);
-        return Result.success(article);
+    public Result<ArticleDetailResponse> getArticle(@PathVariable Long id, HttpServletRequest request) {
+        Long currentUserId = getCurrentUserId(request);
+        ArticleDetailResponse result = articleService.getArticleDetail(id, currentUserId);
+        return Result.success(result);
     }
 
     @PostMapping
     @PreAuthorize("hasRole('USER')")
     @RequireRole(UserRole.USER)
     public Result<Article> createArticle(@Valid @RequestBody CreateArticleRequest request, HttpServletRequest httpRequest) {
-        Long currentUserId = getCurrentUserId(httpRequest);
+        Long currentUserId = getCurrentUserIdOrThrow(httpRequest);
 
         Article article = new Article();
         article.setTitle(request.getTitle());
@@ -179,12 +174,21 @@ public class ArticleController {
     }
 
     @GetMapping("/search")
-    public Result<List<Article>> searchArticles(
-            @RequestParam String keyword,
-            @RequestParam(defaultValue = "20") int limit) {
+    public Result<ArticleListResponse> searchArticles(@Valid ArticleQueryRequest request) {
+        ArticleListResponse result = articleService.searchArticles(request);
+        return Result.success(result);
+    }
 
-        List<Article> articles = articleService.searchArticles(keyword, limit);
-        return Result.success(articles);
+    @GetMapping("/my-articles")
+    @PreAuthorize("hasRole('USER')")
+    public Result<ArticleListResponse> getMyArticles(@Valid ArticleQueryRequest request, HttpServletRequest httpRequest) {
+        Long currentUserId = getCurrentUserIdOrThrow(httpRequest);
+        request.setAuthorId(currentUserId);
+        if (request.getStatus() == null || request.getStatus().equals("PUBLISHED")) {
+            request.setStatus("ALL");
+        }
+        ArticleListResponse result = articleService.getArticleList(request);
+        return Result.success(result);
     }
 
     @GetMapping("/drafts")
@@ -219,9 +223,21 @@ public class ArticleController {
     private Long getCurrentUserId(HttpServletRequest request) {
         String authorization = request.getHeader("Authorization");
         if (authorization == null || !authorization.startsWith("Bearer ")) {
+            return null;
+        }
+        try {
+            String token = authorization.substring(7);
+            return jwtUtil.extractUserId(token);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private Long getCurrentUserIdOrThrow(HttpServletRequest request) {
+        Long userId = getCurrentUserId(request);
+        if (userId == null) {
             throw new RuntimeException("未登录");
         }
-        String token = authorization.substring(7);
-        return jwtUtil.extractUserId(token);
+        return userId;
     }
 }

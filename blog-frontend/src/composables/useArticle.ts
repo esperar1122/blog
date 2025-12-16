@@ -1,6 +1,22 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useArticleStore } from '@/stores/article'
 import { ElMessage } from 'element-plus'
+import {
+  getArticles,
+  getArticle,
+  searchArticles,
+  getMyArticles,
+  likeArticle,
+  publishArticle as publishArticleApi,
+  unpublishArticle,
+  deleteArticle as deleteArticleApi,
+  setArticleTop
+} from '@/api/article'
+import type {
+  ArticleListResponse,
+  ArticleDetailResponse,
+  ArticleQueryParams
+} from '@/types/article'
 
 export function useArticle(articleId?: string | number) {
   const articleStore = useArticleStore()

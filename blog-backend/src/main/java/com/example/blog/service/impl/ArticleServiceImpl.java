@@ -3,9 +3,14 @@ package com.example.blog.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.example.blog.dto.request.ArticleQueryRequest;
+import com.example.blog.dto.response.ArticleListResponse;
+import com.example.blog.dto.response.ArticleDetailResponse;
 import com.example.blog.entity.Article;
 import com.example.blog.entity.ArticleLike;
 import com.example.blog.entity.ArticleTag;
+import com.example.blog.entity.Category;
+import com.example.blog.entity.Tag;
 import com.example.blog.entity.User;
 import com.example.blog.exception.BusinessException;
 import com.example.blog.mapper.ArticleLikeMapper;
@@ -24,6 +29,9 @@ import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.ArrayList;
+import java.util.Map;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -354,5 +362,142 @@ public class ArticleServiceImpl implements ArticleService {
         QueryWrapper<Article> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("status", "PUBLISHED");
         return articleMapper.selectCount(queryWrapper);
+    }
+
+    @Override
+    public ArticleListResponse getArticleList(ArticleQueryRequest request) {
+        Page<Article> page = new Page<>(request.getPage(), request.getSize());
+        IPage<Article> articlePage = articleMapper.selectArticlesWithAdvancedQuery(page, request);
+
+        ArticleListResponse response = new ArticleListResponse();
+        response.setContent(convertToArticleSummaries(articlePage.getRecords()));
+        response.setTotalPages((int) articlePage.getPages());
+        response.setTotalElements(articlePage.getTotal());
+        response.setSize((int) articlePage.getSize());
+        response.setNumber((int) articlePage.getCurrent());
+        response.setFirst(articlePage.getCurrent() == 1);
+        response.setLast(articlePage.getCurrent() == articlePage.getPages());
+        response.setEmpty(articlePage.getRecords().isEmpty());
+
+        return response;
+    }
+
+    @Override
+    public ArticleDetailResponse getArticleDetail(Long id, Long currentUserId) {
+        Article article = getArticleWithDetails(id);
+
+        // 检查权限
+        if (article.isDraft() && !article.getAuthorId().equals(currentUserId)) {
+            throw new BusinessException("无权限访问此文章");
+        }
+
+        // 增加阅读量
+        incrementViewCount(id);
+
+        ArticleDetailResponse response = new ArticleDetailResponse();
+        response.setArticle(article);
+        response.setAuthor(convertToUserSummary(article));
+        response.setCategory(convertToCategorySummary(article));
+        response.setTags(convertToTagSummaries(article.getTags()));
+        response.setLiked(currentUserId != null && articleLikeMapper.existsByArticleIdAndUserId(id, currentUserId));
+        response.setCanEdit(article.getAuthorId().equals(currentUserId));
+
+        return response;
+    }
+
+    @Override
+    public ArticleListResponse searchArticles(ArticleQueryRequest request) {
+        Page<Article> page = new Page<>(request.getPage(), request.getSize());
+
+        // 如果是搜索请求，使用关键词搜索
+        if (request.getKeyword() != null && !request.getKeyword().trim().isEmpty()) {
+            List<Article> searchResults = articleMapper.selectArticlesByKeyword(request.getKeyword(), request.getSize());
+            ArticleListResponse response = new ArticleListResponse();
+            response.setContent(convertToArticleSummaries(searchResults));
+            response.setTotalPages(1);
+            response.setTotalElements(searchResults.size());
+            response.setSize(searchResults.size());
+            response.setNumber(0);
+            response.setFirst(true);
+            response.setLast(true);
+            response.setEmpty(searchResults.isEmpty());
+            return response;
+        } else {
+            // 否则使用高级查询
+            return getArticleList(request);
+        }
+    }
+
+    private List<ArticleListResponse.ArticleSummary> convertToArticleSummaries(List<Article> articles) {
+        return articles.stream()
+                .collect(Collectors.groupingBy(Article::getId))
+                .values()
+                .stream()
+                .map(articleList -> {
+                    Article article = articleList.get(0);
+                    ArticleListResponse.ArticleSummary summary = new ArticleListResponse.ArticleSummary();
+
+                    summary.setId(article.getId());
+                    summary.setTitle(article.getTitle());
+                    summary.setSummary(article.getSummary());
+                    summary.setCoverImage(article.getCoverImage());
+                    summary.setStatus(article.getStatus());
+                    summary.setViewCount(article.getViewCount());
+                    summary.setLikeCount(article.getLikeCount());
+                    summary.setCommentCount(article.getCommentCount());
+                    summary.setIsTop(article.getIsTop());
+                    summary.setAuthorId(article.getAuthorId());
+                    summary.setAuthorName(article.getAuthorName() != null ? article.getAuthorName() : "");
+                    summary.setAuthorAvatar(article.getAuthorAvatar() != null ? article.getAuthorAvatar() : "");
+                    summary.setCategoryId(article.getCategoryId());
+                    summary.setCategoryName(article.getCategoryName() != null ? article.getCategoryName() : "");
+                    summary.setCreateTime(article.getCreateTime());
+                    summary.setUpdateTime(article.getUpdateTime());
+                    summary.setPublishTime(article.getPublishTime());
+
+                    // 处理标签
+                    List<String> tagNames = articleList.stream()
+                            .flatMap(a -> a.getTags() != null ? a.getTags().stream() : Stream.empty())
+                            .map(Tag::getName)
+                            .distinct()
+                            .collect(Collectors.toList());
+                    summary.setTags(tagNames);
+
+                    return summary;
+                })
+                .collect(Collectors.toList());
+    }
+
+    private ArticleDetailResponse.UserSummary convertToUserSummary(Article article) {
+        ArticleDetailResponse.UserSummary userSummary = new ArticleDetailResponse.UserSummary();
+        userSummary.setId(article.getAuthorId());
+        userSummary.setUsername(article.getAuthorName() != null ? article.getAuthorName() : "");
+        userSummary.setNickname(article.getAuthorName() != null ? article.getAuthorName() : "");
+        userSummary.setAvatar(article.getAuthorAvatar() != null ? article.getAuthorAvatar() : "");
+        return userSummary;
+    }
+
+    private ArticleDetailResponse.CategorySummary convertToCategorySummary(Article article) {
+        ArticleDetailResponse.CategorySummary categorySummary = new ArticleDetailResponse.CategorySummary();
+        if (article.getCategoryId() != null) {
+            categorySummary.setId(article.getCategoryId());
+            categorySummary.setName(article.getCategoryName() != null ? article.getCategoryName() : "");
+        }
+        return categorySummary;
+    }
+
+    private List<ArticleDetailResponse.TagSummary> convertToTagSummaries(List<Tag> tags) {
+        if (tags == null || tags.isEmpty()) {
+            return new ArrayList<>();
+        }
+        return tags.stream()
+                .map(tag -> {
+                    ArticleDetailResponse.TagSummary tagSummary = new ArticleDetailResponse.TagSummary();
+                    tagSummary.setId(tag.getId());
+                    tagSummary.setName(tag.getName());
+                    tagSummary.setColor(tag.getColor() != null ? tag.getColor() : "");
+                    return tagSummary;
+                })
+                .collect(Collectors.toList());
     }
 }

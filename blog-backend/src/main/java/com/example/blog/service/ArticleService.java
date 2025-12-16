@@ -2,6 +2,9 @@ package com.example.blog.service;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.example.blog.dto.request.ArticleQueryRequest;
+import com.example.blog.dto.response.ArticleListResponse;
+import com.example.blog.dto.response.ArticleDetailResponse;
 import com.example.blog.entity.Article;
 
 import java.util.List;
@@ -63,4 +66,19 @@ public interface ArticleService {
      * 获取已发布文章数
      */
     int getPublishedArticleCount();
+
+    /**
+     * 分页查询文章列表（带筛选和排序）
+     */
+    ArticleListResponse getArticleList(ArticleQueryRequest request);
+
+    /**
+     * 获取文章详情（带阅读量统计）
+     */
+    ArticleDetailResponse getArticleDetail(Long id, Long currentUserId);
+
+    /**
+     * 搜索文章
+     */
+    ArticleListResponse searchArticles(ArticleQueryRequest request);
 }

@@ -41,4 +41,8 @@ public interface ArticleMapper extends BaseMapper<Article> {
     List<Article> selectDraftArticles(@Param("authorId") Long authorId);
 
     List<Article> selectPublishedArticles(@Param("authorId") Long authorId);
+
+    IPage<Article> selectArticlesWithAdvancedQuery(Page<Article> page, @Param("request") com.example.blog.dto.request.ArticleQueryRequest request);
+
+    List<Article> selectArticlesByKeyword(@Param("keyword") String keyword, @Param("limit") Integer limit);
 }
