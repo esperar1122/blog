@@ -6,7 +6,10 @@ import com.example.blog.dto.request.ArticleQueryRequest;
 import com.example.blog.dto.response.ArticleListResponse;
 import com.example.blog.dto.response.ArticleDetailResponse;
 import com.example.blog.entity.Article;
+import com.example.blog.entity.ArticleVersion;
+import com.example.blog.entity.ArticleOperationLog;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface ArticleService {
@@ -81,4 +84,66 @@ public interface ArticleService {
      * 搜索文章
      */
     ArticleListResponse searchArticles(ArticleQueryRequest request);
+
+    // 文章生命周期管理方法
+
+    /**
+     * 发布文章
+     */
+    boolean publishArticle(Long articleId);
+
+    /**
+     * 下线文章
+     */
+    boolean unpublishArticle(Long articleId);
+
+    /**
+     * 置顶文章
+     */
+    boolean pinArticle(Long articleId);
+
+    /**
+     * 取消置顶文章
+     */
+    boolean unpinArticle(Long articleId);
+
+    /**
+     * 定时发布文章
+     */
+    boolean schedulePublish(Long articleId, LocalDateTime scheduledTime);
+
+    /**
+     * 软删除文章
+     */
+    boolean softDeleteArticle(Long articleId);
+
+    /**
+     * 恢复文章
+     */
+    boolean restoreArticle(Long articleId);
+
+    /**
+     * 获取文章版本历史
+     */
+    List<ArticleVersion> getArticleVersions(Long articleId);
+
+    /**
+     * 获取文章操作日志
+     */
+    List<ArticleOperationLog> getArticleOperationLogs(Long articleId);
+
+    /**
+     * 获取已删除的文章
+     */
+    List<Article> getDeletedArticles(Long authorId);
+
+    /**
+     * 获取定时发布的文章
+     */
+    List<Article> getScheduledArticles(Long authorId);
+
+    /**
+     * 获取置顶的文章
+     */
+    List<Article> getPinnedArticles(Long authorId);
 }

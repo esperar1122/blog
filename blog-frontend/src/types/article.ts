@@ -113,3 +113,73 @@ export interface Tag {
   articleCount: number
   createTime: string
 }
+
+// 文章生命周期管理相关类型定义
+
+export interface ArticleVersion {
+  id: number
+  articleId: number
+  versionNumber: number
+  title: string
+  content: string
+  summary: string
+  coverImage: string
+  changeReason: string
+  editorId: number
+  editorName: string
+  editorAvatar: string
+  createTime: string
+}
+
+export interface ArticleOperationLog {
+  id: number
+  articleId: number
+  operationType: string
+  operationTypeDescription: string
+  oldStatus: string
+  newStatus: string
+  operatorId: number
+  operatorName: string
+  operatorAvatar: string
+  operatorIp: string
+  operationDetail: string
+  createTime: string
+}
+
+export interface ArticleStatusManagementResponse {
+  articleId: number
+  status: string
+  statusDescription: string
+  isTop: boolean
+  publishTime: string
+  deletedAt: string
+  scheduledPublishTime: string
+  operationResult: string
+  message: string
+  operationTime: string
+}
+
+export interface SchedulePublishRequest {
+  articleId: number
+  scheduledPublishTime: string
+  scheduleNote?: string
+}
+
+// 文章状态枚举
+export enum ArticleStatus {
+  DRAFT = 'DRAFT',
+  PUBLISHED = 'PUBLISHED',
+  DELETED = 'DELETED'
+}
+
+// 文章操作类型枚举
+export enum ArticleOperationType {
+  PUBLISH = 'PUBLISH',
+  UNPUBLISH = 'UNPUBLISH',
+  PIN = 'PIN',
+  UNPIN = 'UNPIN',
+  SOFT_DELETE = 'SOFT_DELETE',
+  RESTORE = 'RESTORE',
+  SCHEDULE_PUBLISH = 'SCHEDULE_PUBLISH',
+  UPDATE = 'UPDATE'
+}

@@ -18,6 +18,8 @@
         <result column="create_time" property="createTime"/>
         <result column="update_time" property="updateTime"/>
         <result column="publish_time" property="publishTime"/>
+        <result column="deleted_at" property="deletedAt"/>
+        <result column="scheduled_publish_time" property="scheduledPublishTime"/>
         <result column="author_name" property="authorName"/>
         <result column="author_avatar" property="authorAvatar"/>
         <result column="category_name" property="categoryName"/>
@@ -64,6 +66,7 @@
             a.id, a.title, a.content, a.summary, a.cover_image, a.status,
             a.view_count, a.like_count, a.comment_count, a.is_top,
             a.author_id, a.category_id, a.create_time, a.update_time, a.publish_time,
+            a.deleted_at, a.scheduled_publish_time,
             u.username as author_name, u.avatar as author_avatar,
             c.name as category_name,
             t.id as tag_id, t.name as tag_name, t.create_time as tag_create_time
@@ -263,6 +266,73 @@
         <if test="limit != null and limit > 0">
             LIMIT #{limit}
         </if>
+    </select>
+
+    <!-- 查询已删除文章 -->
+    <select id="selectDeletedArticles" resultType="com.example.blog.entity.Article">
+        SELECT id, title, summary, cover_image, status, view_count, like_count, comment_count,
+               is_top, author_id, category_id, create_time, update_time, publish_time, deleted_at
+        FROM t_article
+        WHERE author_id = #{authorId} AND status = 'DELETED'
+        ORDER BY deleted_at DESC
+    </select>
+
+    <!-- 查询定时发布文章 -->
+    <select id="selectScheduledArticles" resultType="com.example.blog.entity.Article">
+        SELECT id, title, summary, cover_image, status, view_count, like_count, comment_count,
+               is_top, author_id, category_id, create_time, update_time, publish_time, scheduled_publish_time
+        FROM t_article
+        WHERE author_id = #{authorId} AND scheduled_publish_time IS NOT NULL
+        ORDER BY scheduled_publish_time ASC
+    </select>
+
+    <!-- 查询置顶文章 -->
+    <select id="selectPinnedArticles" resultType="com.example.blog.entity.Article">
+        SELECT id, title, summary, cover_image, status, view_count, like_count, comment_count,
+               is_top, author_id, category_id, create_time, update_time, publish_time
+        FROM t_article
+        WHERE author_id = #{authorId} AND is_top = 1
+        <if test="status != null and status != ''">
+            AND status = #{status}
+        </if>
+        ORDER BY create_time DESC
+    </select>
+
+    <!-- 更新置顶状态 -->
+    <update id="updateTopStatus">
+        UPDATE t_article SET is_top = #{isTop} WHERE id = #{id}
+    </update>
+
+    <!-- 软删除文章 -->
+    <update id="softDeleteArticle">
+        UPDATE t_article
+        SET status = 'DELETED', deleted_at = #{deletedAt}, is_top = 0
+        WHERE id = #{id}
+    </update>
+
+    <!-- 恢复文章 -->
+    <update id="restoreArticle">
+        UPDATE t_article
+        SET status = 'DRAFT', deleted_at = NULL
+        WHERE id = #{id}
+    </update>
+
+    <!-- 更新定时发布时间 -->
+    <update id="updateScheduledPublishTime">
+        UPDATE t_article
+        SET scheduled_publish_time = #{scheduledPublishTime}
+        WHERE id = #{id}
+    </update>
+
+    <!-- 查询需要发布的定时文章 -->
+    <select id="selectScheduledArticlesToPublish" resultType="com.example.blog.entity.Article">
+        SELECT id, title, content, summary, cover_image, status, view_count, like_count, comment_count,
+               is_top, author_id, category_id, create_time, update_time, publish_time, scheduled_publish_time
+        FROM t_article
+        WHERE status = 'DRAFT'
+        AND scheduled_publish_time IS NOT NULL
+        AND scheduled_publish_time <= #{currentTime}
+        ORDER BY scheduled_publish_time ASC
     </select>
 
 </mapper>

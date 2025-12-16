@@ -5,7 +5,11 @@ import type {
   Tag,
   ArticleListResponse,
   ArticleDetailResponse,
-  ArticleQueryParams
+  ArticleQueryParams,
+  ArticleVersion,
+  ArticleOperationLog,
+  ArticleStatusManagementResponse,
+  SchedulePublishRequest
 } from '@/types/article'
 
 // 获取文章列表
@@ -90,4 +94,66 @@ export function getArticleStats(): Promise<{
   draftArticles: number
 }> {
   return get('/articles/stats')
+}
+
+// 文章生命周期管理API
+
+// 发布文章
+export function publishArticle(id: number): Promise<ArticleStatusManagementResponse> {
+  return post<ArticleStatusManagementResponse>(`/api/v1/articles/${id}/publish`)
+}
+
+// 下线文章
+export function unpublishArticle(id: number): Promise<ArticleStatusManagementResponse> {
+  return post<ArticleStatusManagementResponse>(`/api/v1/articles/${id}/unpublish`)
+}
+
+// 置顶文章
+export function pinArticle(id: number): Promise<ArticleStatusManagementResponse> {
+  return post<ArticleStatusManagementResponse>(`/api/v1/articles/${id}/pin`)
+}
+
+// 取消置顶文章
+export function unpinArticle(id: number): Promise<ArticleStatusManagementResponse> {
+  return post<ArticleStatusManagementResponse>(`/api/v1/articles/${id}/unpin`)
+}
+
+// 定时发布文章
+export function schedulePublishArticle(id: number, data: SchedulePublishRequest): Promise<ArticleStatusManagementResponse> {
+  return post<ArticleStatusManagementResponse>(`/api/v1/articles/${id}/schedule-publish`, data)
+}
+
+// 软删除文章
+export function softDeleteArticle(id: number): Promise<ArticleStatusManagementResponse> {
+  return del<ArticleStatusManagementResponse>(`/api/v1/articles/${id}/soft-delete`)
+}
+
+// 恢复文章
+export function restoreArticle(id: number): Promise<ArticleStatusManagementResponse> {
+  return post<ArticleStatusManagementResponse>(`/api/v1/articles/${id}/restore`)
+}
+
+// 获取文章版本历史
+export function getArticleVersions(id: number): Promise<ArticleVersion[]> {
+  return get<ArticleVersion[]>(`/api/v1/articles/${id}/versions`)
+}
+
+// 获取文章操作日志
+export function getArticleOperationLogs(id: number): Promise<ArticleOperationLog[]> {
+  return get<ArticleOperationLog[]>(`/api/v1/articles/${id}/operation-logs`)
+}
+
+// 获取已删除的文章
+export function getDeletedArticles(): Promise<Article[]> {
+  return get<Article[]>('/api/v1/articles/deleted')
+}
+
+// 获取定时发布的文章
+export function getScheduledArticles(): Promise<Article[]> {
+  return get<Article[]>('/api/v1/articles/scheduled')
+}
+
+// 获取置顶的文章
+export function getPinnedArticles(): Promise<Article[]> {
+  return get<Article[]>('/api/v1/articles/pinned')
 }

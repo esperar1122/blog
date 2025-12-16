@@ -45,4 +45,20 @@ public interface ArticleMapper extends BaseMapper<Article> {
     IPage<Article> selectArticlesWithAdvancedQuery(Page<Article> page, @Param("request") com.example.blog.dto.request.ArticleQueryRequest request);
 
     List<Article> selectArticlesByKeyword(@Param("keyword") String keyword, @Param("limit") Integer limit);
+
+    List<Article> selectDeletedArticles(@Param("authorId") Long authorId);
+
+    List<Article> selectScheduledArticles(@Param("authorId") Long authorId);
+
+    List<Article> selectPinnedArticles(@Param("authorId") Long authorId, @Param("status") String status);
+
+    int updateTopStatus(@Param("id") Long id, @Param("isTop") Boolean isTop);
+
+    int softDeleteArticle(@Param("id") Long id, @Param("deletedAt") java.time.LocalDateTime deletedAt);
+
+    int restoreArticle(@Param("id") Long id);
+
+    int updateScheduledPublishTime(@Param("id") Long id, @Param("scheduledPublishTime") java.time.LocalDateTime scheduledPublishTime);
+
+    List<Article> selectScheduledArticlesToPublish(@Param("currentTime") java.time.LocalDateTime currentTime);
 }

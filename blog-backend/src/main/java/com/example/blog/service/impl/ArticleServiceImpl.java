@@ -9,6 +9,8 @@ import com.example.blog.dto.response.ArticleDetailResponse;
 import com.example.blog.entity.Article;
 import com.example.blog.entity.ArticleLike;
 import com.example.blog.entity.ArticleTag;
+import com.example.blog.entity.ArticleVersion;
+import com.example.blog.entity.ArticleOperationLog;
 import com.example.blog.entity.Category;
 import com.example.blog.entity.Tag;
 import com.example.blog.entity.User;
@@ -19,13 +21,18 @@ import com.example.blog.mapper.ArticleTagMapper;
 import com.example.blog.mapper.CategoryMapper;
 import com.example.blog.mapper.TagMapper;
 import com.example.blog.mapper.UserMapper;
+import com.example.blog.repository.ArticleVersionRepository;
+import com.example.blog.repository.ArticleOperationLogRepository;
 import com.example.blog.service.ArticleService;
 import com.example.blog.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -44,6 +51,8 @@ public class ArticleServiceImpl implements ArticleService {
     private final CategoryMapper categoryMapper;
     private final TagMapper tagMapper;
     private final NotificationService notificationService;
+    private final ArticleVersionRepository articleVersionRepository;
+    private final ArticleOperationLogRepository articleOperationLogRepository;
 
     @Override
     public Article getArticleById(Long id) {
@@ -499,5 +508,357 @@ public class ArticleServiceImpl implements ArticleService {
                     return tagSummary;
                 })
                 .collect(Collectors.toList());
+    }
+
+    // 文章生命周期管理方法
+
+    @Override
+    @Transactional
+    public boolean publishArticle(Long articleId) {
+        Article article = getArticleById(articleId);
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String currentUsername = auth.getName();
+
+        if (!isAuthor(articleId, currentUsername)) {
+            throw new BusinessException("无权限发布此文章");
+        }
+
+        if (article.getStatus().equals(Article.Status.PUBLISHED.getValue())) {
+            throw new BusinessException("文章已经是发布状态");
+        }
+
+        String oldStatus = article.getStatus();
+        article.setStatus(Article.Status.PUBLISHED.getValue());
+        article.setPublishTime(LocalDateTime.now());
+        article.setScheduledPublishTime(null);
+        article.setUpdateTime(LocalDateTime.now());
+
+        boolean success = articleMapper.updateById(article) > 0;
+        if (success) {
+            saveArticleVersion(article, currentUsername, "发布文章");
+            logArticleOperation(articleId, ArticleOperationLog.OperationType.PUBLISH,
+                              oldStatus, Article.Status.PUBLISHED.getValue(), currentUsername);
+        }
+        return success;
+    }
+
+    @Override
+    @Transactional
+    public boolean unpublishArticle(Long articleId) {
+        Article article = getArticleById(articleId);
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String currentUsername = auth.getName();
+
+        if (!isAuthor(articleId, currentUsername)) {
+            throw new BusinessException("无权限下线此文章");
+        }
+
+        if (!article.getStatus().equals(Article.Status.PUBLISHED.getValue())) {
+            throw new BusinessException("只有已发布的文章才能下线");
+        }
+
+        String oldStatus = article.getStatus();
+        article.setStatus(Article.Status.DRAFT.getValue());
+        article.setUpdateTime(LocalDateTime.now());
+
+        boolean success = articleMapper.updateById(article) > 0;
+        if (success) {
+            saveArticleVersion(article, currentUsername, "下线文章");
+            logArticleOperation(articleId, ArticleOperationLog.OperationType.UNPUBLISH,
+                              oldStatus, Article.Status.DRAFT.getValue(), currentUsername);
+        }
+        return success;
+    }
+
+    @Override
+    @Transactional
+    public boolean pinArticle(Long articleId) {
+        Article article = getArticleById(articleId);
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String currentUsername = auth.getName();
+
+        if (!isAuthor(articleId, currentUsername)) {
+            throw new BusinessException("无权限置顶此文章");
+        }
+
+        if (article.getIsTop()) {
+            throw new BusinessException("文章已经是置顶状态");
+        }
+
+        article.setIsTop(true);
+        article.setUpdateTime(LocalDateTime.now());
+
+        boolean success = articleMapper.updateById(article) > 0;
+        if (success) {
+            saveArticleVersion(article, currentUsername, "置顶文章");
+            logArticleOperation(articleId, ArticleOperationLog.OperationType.PIN,
+                              null, null, currentUsername);
+        }
+        return success;
+    }
+
+    @Override
+    @Transactional
+    public boolean unpinArticle(Long articleId) {
+        Article article = getArticleById(articleId);
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String currentUsername = auth.getName();
+
+        if (!isAuthor(articleId, currentUsername)) {
+            throw new BusinessException("无权限取消置顶此文章");
+        }
+
+        if (!article.getIsTop()) {
+            throw new BusinessException("文章不是置顶状态");
+        }
+
+        article.setIsTop(false);
+        article.setUpdateTime(LocalDateTime.now());
+
+        boolean success = articleMapper.updateById(article) > 0;
+        if (success) {
+            saveArticleVersion(article, currentUsername, "取消置顶");
+            logArticleOperation(articleId, ArticleOperationLog.OperationType.UNPIN,
+                              null, null, currentUsername);
+        }
+        return success;
+    }
+
+    @Override
+    @Transactional
+    public boolean schedulePublish(Long articleId, LocalDateTime scheduledTime) {
+        Article article = getArticleById(articleId);
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String currentUsername = auth.getName();
+
+        if (!isAuthor(articleId, currentUsername)) {
+            throw new BusinessException("无权限定时发布此文章");
+        }
+
+        if (scheduledTime.isBefore(LocalDateTime.now())) {
+            throw new BusinessException("定时发布时间必须是未来时间");
+        }
+
+        if (article.getStatus().equals(Article.Status.PUBLISHED.getValue())) {
+            throw new BusinessException("已发布的文章不能设置定时发布");
+        }
+
+        article.setScheduledPublishTime(scheduledTime);
+        article.setUpdateTime(LocalDateTime.now());
+
+        boolean success = articleMapper.updateById(article) > 0;
+        if (success) {
+            saveArticleVersion(article, currentUsername, "设置定时发布");
+            logArticleOperation(articleId, ArticleOperationLog.OperationType.SCHEDULE_PUBLISH,
+                              null, null, currentUsername);
+        }
+        return success;
+    }
+
+    @Override
+    @Transactional
+    public boolean softDeleteArticle(Long articleId) {
+        Article article = getArticleById(articleId);
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String currentUsername = auth.getName();
+
+        if (!isAuthor(articleId, currentUsername)) {
+            throw new BusinessException("无权限删除此文章");
+        }
+
+        if (article.getStatus().equals(Article.Status.DELETED.getValue())) {
+            throw new BusinessException("文章已经是删除状态");
+        }
+
+        String oldStatus = article.getStatus();
+        article.setStatus(Article.Status.DELETED.getValue());
+        article.setDeletedAt(LocalDateTime.now());
+        article.setIsTop(false);
+        article.setUpdateTime(LocalDateTime.now());
+
+        boolean success = articleMapper.updateById(article) > 0;
+        if (success) {
+            saveArticleVersion(article, currentUsername, "删除文章");
+            logArticleOperation(articleId, ArticleOperationLog.OperationType.SOFT_DELETE,
+                              oldStatus, Article.Status.DELETED.getValue(), currentUsername);
+        }
+        return success;
+    }
+
+    @Override
+    @Transactional
+    public boolean restoreArticle(Long articleId) {
+        Article article = getArticleById(articleId);
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String currentUsername = auth.getName();
+
+        if (!isAuthor(articleId, currentUsername)) {
+            throw new BusinessException("无权限恢复此文章");
+        }
+
+        if (!article.getStatus().equals(Article.Status.DELETED.getValue())) {
+            throw new BusinessException("只有已删除的文章才能恢复");
+        }
+
+        String oldStatus = article.getStatus();
+        article.setStatus(Article.Status.DRAFT.getValue());
+        article.setDeletedAt(null);
+        article.setUpdateTime(LocalDateTime.now());
+
+        boolean success = articleMapper.updateById(article) > 0;
+        if (success) {
+            saveArticleVersion(article, currentUsername, "恢复文章");
+            logArticleOperation(articleId, ArticleOperationLog.OperationType.RESTORE,
+                              oldStatus, Article.Status.DRAFT.getValue(), currentUsername);
+        }
+        return success;
+    }
+
+    @Override
+    public List<ArticleVersion> getArticleVersions(Long articleId) {
+        return articleVersionRepository.findByArticleIdOrderByVersionNumberDesc(articleId);
+    }
+
+    @Override
+    public List<ArticleOperationLog> getArticleOperationLogs(Long articleId) {
+        List<ArticleOperationLog> logs = articleOperationLogRepository.findByArticleIdOrderByCreateTimeDesc(articleId);
+
+        // 加载操作者信息
+        for (ArticleOperationLog log : logs) {
+            User operator = userMapper.selectById(log.getOperatorId());
+            if (operator != null) {
+                log.setOperatorName(operator.getUsername());
+                log.setOperatorAvatar(operator.getAvatar());
+            }
+        }
+
+        return logs;
+    }
+
+    @Override
+    public List<Article> getDeletedArticles(Long authorId) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String currentUsername = auth.getName();
+
+        if (!isAuthor(authorId, currentUsername)) {
+            throw new BusinessException("无权限查看此作者的删除文章");
+        }
+
+        return articleMapper.selectDeletedArticles(authorId);
+    }
+
+    @Override
+    public List<Article> getScheduledArticles(Long authorId) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String currentUsername = auth.getName();
+
+        if (!isAuthor(authorId, currentUsername)) {
+            throw new BusinessException("无权限查看此作者的定时文章");
+        }
+
+        return articleMapper.selectScheduledArticles(authorId);
+    }
+
+    @Override
+    public List<Article> getPinnedArticles(Long authorId) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String currentUsername = auth.getName();
+
+        if (!isAuthor(authorId, currentUsername)) {
+            throw new BusinessException("无权限查看此作者的置顶文章");
+        }
+
+        return articleMapper.selectPinnedArticles(authorId, Article.Status.PUBLISHED.getValue());
+    }
+
+    // 辅助方法
+
+    private boolean isAuthor(Long articleId, String username) {
+        Article article = articleMapper.selectById(articleId);
+        if (article == null) {
+            return false;
+        }
+
+        User user = userMapper.selectByUsername(username);
+        if (user == null) {
+            return false;
+        }
+
+        return article.getAuthorId().equals(user.getId());
+    }
+
+    private boolean isAuthor(Long authorId, String username) {
+        User user = userMapper.selectByUsername(username);
+        if (user == null) {
+            return false;
+        }
+
+        return authorId.equals(user.getId());
+    }
+
+    private void saveArticleVersion(Article article, String username, String changeReason) {
+        User user = userMapper.selectByUsername(username);
+        if (user == null) {
+            throw new BusinessException("用户不存在");
+        }
+
+        Integer maxVersion = articleVersionRepository.findMaxVersionNumberByArticleId(article.getId());
+        int newVersion = (maxVersion != null ? maxVersion : 0) + 1;
+
+        ArticleVersion version = new ArticleVersion();
+        version.setArticleId(article.getId());
+        version.setVersionNumber(newVersion);
+        version.setTitle(article.getTitle());
+        version.setContent(article.getContent());
+        version.setSummary(article.getSummary());
+        version.setCoverImage(article.getCoverImage());
+        version.setChangeReason(changeReason);
+        version.setEditorId(user.getId());
+        version.setCreateTime(LocalDateTime.now());
+
+        articleVersionRepository.insert(version);
+    }
+
+    private void logArticleOperation(Long articleId, ArticleOperationLog.OperationType operationType,
+                                   String oldStatus, String newStatus, String username) {
+        User user = userMapper.selectByUsername(username);
+        if (user == null) {
+            throw new BusinessException("用户不存在");
+        }
+
+        ArticleOperationLog log = new ArticleOperationLog();
+        log.setArticleId(articleId);
+        log.setOperationType(operationType.getValue());
+        log.setOldStatus(oldStatus);
+        log.setNewStatus(newStatus);
+        log.setOperatorId(user.getId());
+        log.setOperatorIp(getClientIpAddress());
+        log.setOperationDetail(createOperationDetail(operationType, oldStatus, newStatus));
+        log.setCreateTime(LocalDateTime.now());
+
+        articleOperationLogRepository.insert(log);
+    }
+
+    private String createOperationDetail(ArticleOperationLog.OperationType operationType,
+                                        String oldStatus, String newStatus) {
+        Map<String, Object> detail = new HashMap<>();
+        detail.put("operation", operationType.getValue());
+        detail.put("description", operationType.getDescription());
+
+        if (oldStatus != null) {
+            detail.put("oldStatus", oldStatus);
+        }
+        if (newStatus != null) {
+            detail.put("newStatus", newStatus);
+        }
+
+        // 简单的JSON序列化
+        return detail.toString();
+    }
+
+    private String getClientIpAddress() {
+        // 这里应该从HttpServletRequest中获取真实IP
+        // 暂时返回默认值
+        return "unknown";
     }
 }

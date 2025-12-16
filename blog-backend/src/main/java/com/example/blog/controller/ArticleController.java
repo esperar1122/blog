@@ -3,9 +3,16 @@ package com.example.blog.controller;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.blog.common.Result;
 import com.example.blog.dto.request.ArticleQueryRequest;
+import com.example.blog.dto.request.PublishArticleRequest;
+import com.example.blog.dto.request.SchedulePublishRequest;
 import com.example.blog.dto.response.ArticleListResponse;
 import com.example.blog.dto.response.ArticleDetailResponse;
+import com.example.blog.dto.response.ArticleVersionResponse;
+import com.example.blog.dto.response.ArticleOperationLogResponse;
+import com.example.blog.dto.response.ArticleStatusManagementResponse;
 import com.example.blog.entity.Article;
+import com.example.blog.entity.ArticleVersion;
+import com.example.blog.entity.ArticleOperationLog;
 import com.example.blog.enums.UserRole;
 import com.example.blog.security.RequireRole;
 import com.example.blog.security.RequireAdmin;
@@ -20,8 +27,10 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Slf4j
 @RestController
@@ -239,5 +248,194 @@ public class ArticleController {
             throw new RuntimeException("未登录");
         }
         return userId;
+    }
+
+    // 文章生命周期管理API
+
+    @PostMapping("/{id}/publish")
+    @PreAuthorize("hasRole('USER')")
+    public Result<ArticleStatusManagementResponse> publishArticle(@PathVariable Long id) {
+        boolean success = articleService.publishArticle(id);
+        ArticleStatusManagementResponse response = new ArticleStatusManagementResponse();
+        response.setArticleId(id);
+        response.setStatus("PUBLISHED");
+        response.setStatusDescription("已发布");
+        response.setOperationResult(success ? "success" : "failed");
+        response.setMessage(success ? "文章发布成功" : "文章发布失败");
+        response.setOperationTime(LocalDateTime.now());
+
+        return success ? Result.success(response) : Result.error("文章发布失败");
+    }
+
+    @PostMapping("/{id}/unpublish")
+    @PreAuthorize("hasRole('USER')")
+    public Result<ArticleStatusManagementResponse> unpublishArticle(@PathVariable Long id) {
+        boolean success = articleService.unpublishArticle(id);
+        ArticleStatusManagementResponse response = new ArticleStatusManagementResponse();
+        response.setArticleId(id);
+        response.setStatus("DRAFT");
+        response.setStatusDescription("草稿");
+        response.setOperationResult(success ? "success" : "failed");
+        response.setMessage(success ? "文章下线成功" : "文章下线失败");
+        response.setOperationTime(LocalDateTime.now());
+
+        return success ? Result.success(response) : Result.error("文章下线失败");
+    }
+
+    @PostMapping("/{id}/pin")
+    @PreAuthorize("hasRole('USER')")
+    public Result<ArticleStatusManagementResponse> pinArticle(@PathVariable Long id) {
+        boolean success = articleService.pinArticle(id);
+        ArticleStatusManagementResponse response = new ArticleStatusManagementResponse();
+        response.setArticleId(id);
+        response.setIsTop(true);
+        response.setOperationResult(success ? "success" : "failed");
+        response.setMessage(success ? "文章置顶成功" : "文章置顶失败");
+        response.setOperationTime(LocalDateTime.now());
+
+        return success ? Result.success(response) : Result.error("文章置顶失败");
+    }
+
+    @PostMapping("/{id}/unpin")
+    @PreAuthorize("hasRole('USER')")
+    public Result<ArticleStatusManagementResponse> unpinArticle(@PathVariable Long id) {
+        boolean success = articleService.unpinArticle(id);
+        ArticleStatusManagementResponse response = new ArticleStatusManagementResponse();
+        response.setArticleId(id);
+        response.setIsTop(false);
+        response.setOperationResult(success ? "success" : "failed");
+        response.setMessage(success ? "取消置顶成功" : "取消置顶失败");
+        response.setOperationTime(LocalDateTime.now());
+
+        return success ? Result.success(response) : Result.error("取消置顶失败");
+    }
+
+    @PostMapping("/{id}/schedule-publish")
+    @PreAuthorize("hasRole('USER')")
+    public Result<ArticleStatusManagementResponse> schedulePublishArticle(
+            @PathVariable Long id,
+            @Valid @RequestBody SchedulePublishRequest request) {
+        boolean success = articleService.schedulePublish(id, request.getScheduledPublishTime());
+        ArticleStatusManagementResponse response = new ArticleStatusManagementResponse();
+        response.setArticleId(id);
+        response.setScheduledPublishTime(request.getScheduledPublishTime());
+        response.setOperationResult(success ? "success" : "failed");
+        response.setMessage(success ? "定时发布设置成功" : "定时发布设置失败");
+        response.setOperationTime(LocalDateTime.now());
+
+        return success ? Result.success(response) : Result.error("定时发布设置失败");
+    }
+
+    @DeleteMapping("/{id}/soft-delete")
+    @PreAuthorize("hasRole('USER')")
+    public Result<ArticleStatusManagementResponse> softDeleteArticle(@PathVariable Long id) {
+        boolean success = articleService.softDeleteArticle(id);
+        ArticleStatusManagementResponse response = new ArticleStatusManagementResponse();
+        response.setArticleId(id);
+        response.setStatus("DELETED");
+        response.setStatusDescription("已删除");
+        response.setDeletedAt(LocalDateTime.now());
+        response.setOperationResult(success ? "success" : "failed");
+        response.setMessage(success ? "文章删除成功" : "文章删除失败");
+        response.setOperationTime(LocalDateTime.now());
+
+        return success ? Result.success(response) : Result.error("文章删除失败");
+    }
+
+    @PostMapping("/{id}/restore")
+    @PreAuthorize("hasRole('USER')")
+    public Result<ArticleStatusManagementResponse> restoreArticle(@PathVariable Long id) {
+        boolean success = articleService.restoreArticle(id);
+        ArticleStatusManagementResponse response = new ArticleStatusManagementResponse();
+        response.setArticleId(id);
+        response.setStatus("DRAFT");
+        response.setStatusDescription("草稿");
+        response.setOperationResult(success ? "success" : "failed");
+        response.setMessage(success ? "文章恢复成功" : "文章恢复失败");
+        response.setOperationTime(LocalDateTime.now());
+
+        return success ? Result.success(response) : Result.error("文章恢复失败");
+    }
+
+    @GetMapping("/{id}/versions")
+    @PreAuthorize("hasRole('USER')")
+    public Result<List<ArticleVersionResponse>> getArticleVersions(@PathVariable Long id) {
+        List<ArticleVersion> versions = articleService.getArticleVersions(id);
+        List<ArticleVersionResponse> response = versions.stream()
+                .map(this::convertToArticleVersionResponse)
+                .collect(Collectors.toList());
+
+        return Result.success(response);
+    }
+
+    @GetMapping("/{id}/operation-logs")
+    @PreAuthorize("hasRole('USER')")
+    public Result<List<ArticleOperationLogResponse>> getArticleOperationLogs(@PathVariable Long id) {
+        List<ArticleOperationLog> logs = articleService.getArticleOperationLogs(id);
+        List<ArticleOperationLogResponse> response = logs.stream()
+                .map(this::convertToArticleOperationLogResponse)
+                .collect(Collectors.toList());
+
+        return Result.success(response);
+    }
+
+    @GetMapping("/deleted")
+    @PreAuthorize("hasRole('USER')")
+    public Result<List<Article>> getDeletedArticles(HttpServletRequest request) {
+        Long currentUserId = getCurrentUserId(request);
+        List<Article> articles = articleService.getDeletedArticles(currentUserId);
+        return Result.success(articles);
+    }
+
+    @GetMapping("/scheduled")
+    @PreAuthorize("hasRole('USER')")
+    public Result<List<Article>> getScheduledArticles(HttpServletRequest request) {
+        Long currentUserId = getCurrentUserId(request);
+        List<Article> articles = articleService.getScheduledArticles(currentUserId);
+        return Result.success(articles);
+    }
+
+    @GetMapping("/pinned")
+    @PreAuthorize("hasRole('USER')")
+    public Result<List<Article>> getPinnedArticles(HttpServletRequest request) {
+        Long currentUserId = getCurrentUserId(request);
+        List<Article> articles = articleService.getPinnedArticles(currentUserId);
+        return Result.success(articles);
+    }
+
+    // 辅助方法
+
+    private ArticleVersionResponse convertToArticleVersionResponse(ArticleVersion version) {
+        ArticleVersionResponse response = new ArticleVersionResponse();
+        response.setId(version.getId());
+        response.setArticleId(version.getArticleId());
+        response.setVersionNumber(version.getVersionNumber());
+        response.setTitle(version.getTitle());
+        response.setContent(version.getContent());
+        response.setSummary(version.getSummary());
+        response.setCoverImage(version.getCoverImage());
+        response.setChangeReason(version.getChangeReason());
+        response.setEditorId(version.getEditorId());
+        response.setEditorName(version.getEditorName());
+        response.setEditorAvatar(version.getEditorAvatar());
+        response.setCreateTime(version.getCreateTime());
+        return response;
+    }
+
+    private ArticleOperationLogResponse convertToArticleOperationLogResponse(ArticleOperationLog log) {
+        ArticleOperationLogResponse response = new ArticleOperationLogResponse();
+        response.setId(log.getId());
+        response.setArticleId(log.getArticleId());
+        response.setOperationType(log.getOperationType());
+        response.setOperationTypeDescription(ArticleOperationLog.OperationType.fromValue(log.getOperationType()).getDescription());
+        response.setOldStatus(log.getOldStatus());
+        response.setNewStatus(log.getNewStatus());
+        response.setOperatorId(log.getOperatorId());
+        response.setOperatorName(log.getOperatorName());
+        response.setOperatorAvatar(log.getOperatorAvatar());
+        response.setOperatorIp(log.getOperatorIp());
+        response.setOperationDetail(log.getOperationDetail());
+        response.setCreateTime(log.getCreateTime());
+        return response;
     }
 }

@@ -56,6 +56,12 @@ public class Article {
     @TableField("publish_time")
     private LocalDateTime publishTime;
 
+    @TableField("deleted_at")
+    private LocalDateTime deletedAt;
+
+    @TableField("scheduled_publish_time")
+    private LocalDateTime scheduledPublishTime;
+
     @TableField(exist = false)
     private String authorName;
 
@@ -98,6 +104,14 @@ public class Article {
 
     public boolean isDraft() {
         return Status.DRAFT.getValue().equals(this.status);
+    }
+
+    public boolean isDeleted() {
+        return Status.DELETED.getValue().equals(this.status);
+    }
+
+    public boolean isScheduled() {
+        return scheduledPublishTime != null && scheduledPublishTime.isAfter(java.time.LocalDateTime.now());
     }
 
     public void incrementViewCount() {
