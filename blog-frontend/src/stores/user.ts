@@ -13,7 +13,7 @@ export const useUserStore = defineStore('user', () => {
   })
 
   const isAdmin = computed(() => {
-    return userInfo.value?.role === 'admin'
+    return userInfo.value?.role === 'ADMIN'
   })
 
   const currentUserName = computed(() => {
@@ -101,7 +101,7 @@ export const useUserStore = defineStore('user', () => {
     if (!userInfo.value) return false
 
     // 管理员拥有所有权限
-    if (userInfo.value.role === 'admin') return true
+    if (userInfo.value.role === 'ADMIN') return true
 
     // 根据实际权限系统实现
     // 这里只是示例
@@ -113,7 +113,7 @@ export const useUserStore = defineStore('user', () => {
     if (!userInfo.value) return false
 
     // 管理员可以编辑所有文章
-    if (userInfo.value.role === 'admin') return true
+    if (userInfo.value.role === 'ADMIN') return true
 
     // 作者可以编辑自己的文章
     return userInfo.value.id === articleAuthorId
