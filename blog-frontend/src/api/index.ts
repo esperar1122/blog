@@ -6,7 +6,7 @@ import type { ApiResponse } from 'blog-shared'
 
 // 创建axios实例
 const request: AxiosInstance = axios.create({
-  baseURL: '/api',
+  baseURL: '/api/v1',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json'

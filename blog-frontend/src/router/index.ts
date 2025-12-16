@@ -36,7 +36,7 @@ const router = createRouter({
     {
       path: '/register',
       name: 'register',
-      component: () => import('@/views/RegisterView.vue'),
+      component: () => import('@/views/Register.vue'),
       meta: { title: '注册' }
     },
     {

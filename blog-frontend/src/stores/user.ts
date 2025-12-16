@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { User } from 'blog-shared'
-import { login, logout, getUserInfo } from '@/api/auth'
+import { login, register, logout, getUserInfo, type RegisterParams } from '@/api/auth'
 
 export const useUserStore = defineStore('user', () => {
   const token = ref<string | null>(localStorage.getItem('token'))
@@ -36,6 +36,19 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
+  // 注册
+  async function doRegister(credentials: RegisterParams) {
+    try {
+      const response = await register(credentials)
+      token.value = response.token
+      userInfo.value = response.user
+      localStorage.setItem('token', response.token)
+      return Promise.resolve()
+    } catch (error) {
+      return Promise.reject(error)
+    }
+  }
+
   // 获取用户信息
   async function fetchUserInfo() {
     try {
@@ -57,6 +70,7 @@ export const useUserStore = defineStore('user', () => {
     isLoggedIn,
     isAdmin,
     doLogin,
+    doRegister,
     doLogout,
     fetchUserInfo
   }

@@ -4,6 +4,7 @@ import lombok.Data;
 
 import javax.validation.constraints.Email;
 import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.Pattern;
 import javax.validation.constraints.Size;
 
 @Data
@@ -18,7 +19,9 @@ public class RegisterRequest {
     private String email;
 
     @NotBlank(message = "密码不能为空")
-    @Size(min = 6, max = 50, message = "密码长度必须在6-50个字符之间")
+    @Size(min = 8, max = 50, message = "密码长度必须在8-50个字符之间")
+    @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d@$!%*#?&]{8,}$",
+             message = "密码必须至少8位，包含字母和数字")
     private String password;
 
     @Size(max = 50, message = "昵称长度不能超过50个字符")
