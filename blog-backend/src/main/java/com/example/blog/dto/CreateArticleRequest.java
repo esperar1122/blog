@@ -22,7 +22,6 @@ public class CreateArticleRequest {
 
     private String coverImage;
 
-    @NotNull(message = "文章分类不能为空")
     private Long categoryId;
 
     private List<Long> tagIds;

@@ -28,6 +28,12 @@ const router = createRouter({
       meta: { title: '分类' }
     },
     {
+      path: '/category/:id',
+      name: 'category-detail',
+      component: () => import('@/views/CategoryDetailView.vue'),
+      meta: { title: '分类详情' }
+    },
+    {
       path: '/login',
       name: 'login',
       component: () => import('@/views/LoginView.vue'),
@@ -44,6 +50,36 @@ const router = createRouter({
       name: 'profile',
       component: () => import('@/views/ProfileView.vue'),
       meta: { title: '个人中心', requiresAuth: true }
+    },
+    {
+      path: '/admin',
+      name: 'admin',
+      redirect: '/admin/dashboard',
+      meta: { title: '管理后台', requiresAuth: true, requiresAdmin: true }
+    },
+    {
+      path: '/admin/dashboard',
+      name: 'admin-dashboard',
+      component: () => import('@/views/admin/DashboardView.vue'),
+      meta: { title: '仪表盘', requiresAuth: true, requiresAdmin: true }
+    },
+    {
+      path: '/admin/categories',
+      name: 'admin-categories',
+      component: () => import('@/views/admin/CategoryManagement.vue'),
+      meta: { title: '分类管理', requiresAuth: true, requiresAdmin: true }
+    },
+    {
+      path: '/admin/articles',
+      name: 'admin-articles',
+      component: () => import('@/views/admin/ArticleManagement.vue'),
+      meta: { title: '文章管理', requiresAuth: true, requiresAdmin: true }
+    },
+    {
+      path: '/admin/users',
+      name: 'admin-users',
+      component: () => import('@/views/admin/UserManagement.vue'),
+      meta: { title: '用户管理', requiresAuth: true, requiresAdmin: true }
     },
     {
       path: '/:pathMatch(.*)*',
@@ -65,6 +101,26 @@ router.beforeEach((to, from, next) => {
     if (!token) {
       next({ name: 'login', query: { redirect: to.fullPath } })
       return
+    }
+
+    // 检查是否需要管理员权限
+    if (to.meta.requiresAdmin) {
+      const userStr = localStorage.getItem('user')
+      if (!userStr) {
+        next({ name: 'login', query: { redirect: to.fullPath } })
+        return
+      }
+
+      try {
+        const user = JSON.parse(userStr)
+        if (user.role !== 'ADMIN') {
+          next({ name: 'home' })
+          return
+        }
+      } catch (error) {
+        next({ name: 'login', query: { redirect: to.fullPath } })
+        return
+      }
     }
   }
 

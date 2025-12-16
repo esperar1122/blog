@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.blog.mapper.CategoryMapper">
+
+    <!-- 基础结果映射 -->
+    <resultMap id="BaseResultMap" type="com.example.blog.entity.Category">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="name" property="name" jdbcType="VARCHAR"/>
+        <result column="description" property="description" jdbcType="VARCHAR"/>
+        <result column="icon" property="icon" jdbcType="VARCHAR"/>
+        <result column="parent_id" property="parentId" jdbcType="BIGINT"/>
+        <result column="sort_order" property="sortOrder" jdbcType="INTEGER"/>
+        <result column="article_count" property="articleCount" jdbcType="INTEGER"/>
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP"/>
+        <result column="update_time" property="updateTime" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <!-- 获取所有分类及其文章数量 -->
+    <select id="selectCategoriesWithCount" resultMap="BaseResultMap">
+        SELECT
+            c.id,
+            c.name,
+            c.description,
+            c.icon,
+            c.parent_id,
+            c.sort_order,
+            COALESCE(c.article_count, 0) as article_count,
+            c.create_time,
+            c.update_time
+        FROM t_category c
+        ORDER BY c.sort_order ASC, c.id ASC
+    </select>
+
+    <!-- 获取根分类列表 -->
+    <select id="selectRootCategories" resultMap="BaseResultMap">
+        SELECT
+            id,
+            name,
+            description,
+            icon,
+            parent_id,
+            sort_order,
+            COALESCE(article_count, 0) as article_count,
+            create_time,
+            update_time
+        FROM t_category
+        WHERE parent_id IS NULL OR parent_id = 0
+        ORDER BY sort_order ASC, id ASC
+    </select>
+
+    <!-- 获取子分类列表 -->
+    <select id="selectChildCategories" parameterType="java.lang.Long" resultMap="BaseResultMap">
+        SELECT
+            id,
+            name,
+            description,
+            icon,
+            parent_id,
+            sort_order,
+            COALESCE(article_count, 0) as article_count,
+            create_time,
+            update_time
+        FROM t_category
+        WHERE parent_id = #{parentId, jdbcType=BIGINT}
+        ORDER BY sort_order ASC, id ASC
+    </select>
+
+    <!-- 根据ID获取分类详情（包含文章数量） -->
+    <select id="selectCategoryWithCount" parameterType="java.lang.Long" resultMap="BaseResultMap">
+        SELECT
+            id,
+            name,
+            description,
+            icon,
+            parent_id,
+            sort_order,
+            COALESCE(article_count, 0) as article_count,
+            create_time,
+            update_time
+        FROM t_category
+        WHERE id = #{id, jdbcType=BIGINT}
+    </select>
+
+    <!-- 检查分类名称是否存在 -->
+    <select id="existsByName" parameterType="java.lang.String" resultType="java.lang.Boolean">
+        SELECT COUNT(1) > 0
+        FROM t_category
+        WHERE name = #{name, jdbcType=VARCHAR}
+    </select>
+
+    <!-- 检查分类名称是否存在（排除指定ID） -->
+    <select id="existsByNameAndExcludeId" resultType="java.lang.Boolean">
+        SELECT COUNT(1) > 0
+        FROM t_category
+        WHERE name = #{name, jdbcType=VARCHAR}
+        AND id != #{excludeId, jdbcType=BIGINT}
+    </select>
+
+    <!-- 更新分类文章数量 -->
+    <update id="updateArticleCount">
+        UPDATE t_category
+        SET article_count = #{count, jdbcType=INTEGER}
+        WHERE id = #{id, jdbcType=BIGINT}
+    </update>
+
+    <!-- 增加文章数量 -->
+    <update id="incrementArticleCount">
+        UPDATE t_category
+        SET article_count = IFNULL(article_count, 0) + 1
+        WHERE id = #{id, jdbcType=BIGINT}
+    </update>
+
+    <!-- 减少文章数量 -->
+    <update id="decrementArticleCount">
+        UPDATE t_category
+        SET article_count = GREATEST(IFNULL(article_count, 0) - 1, 0)
+        WHERE id = #{id, jdbcType=BIGINT}
+    </update>
+
+    <!-- 按排序顺序获取分类列表 -->
+    <select id="selectCategoriesBySortOrder" resultMap="BaseResultMap">
+        SELECT
+            id,
+            name,
+            description,
+            icon,
+            parent_id,
+            sort_order,
+            COALESCE(article_count, 0) as article_count,
+            create_time,
+            update_time
+        FROM t_category
+        ORDER BY sort_order ASC, id ASC
+    </select>
+
+</mapper>
