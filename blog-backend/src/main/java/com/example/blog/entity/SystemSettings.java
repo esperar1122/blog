@@ -1,63 +1,40 @@
 package com.example.blog.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 
 import java.time.LocalDateTime;
 
 @Data
-@EqualsAndHashCode(callSuper = false)
-@TableName("t_system_settings")
+@TableName("t_system_setting")
+@Schema(description = "系统设置实体")
 public class SystemSettings {
 
-    @TableId(value = "id", type = IdType.AUTO)
+    @TableId(type = IdType.AUTO)
+    @Schema(description = "设置ID")
     private Long id;
 
-    @TableField("setting_key")
+    @Schema(description = "设置键")
     private String settingKey;
 
-    @TableField("setting_value")
+    @Schema(description = "设置值")
     private String settingValue;
 
-    @TableField("description")
+    @Schema(description = "数据类型")
+    private String settingType;
+
+    @Schema(description = "设置描述")
     private String description;
 
-    @TableField("type")
-    private String type;
+    @Schema(description = "是否系统设置")
+    private Boolean isSystem;
 
-    @TableField("is_public")
-    private Boolean isPublic;
-
-    @TableField(value = "create_time", fill = FieldFill.INSERT)
+    @TableField(fill = FieldFill.INSERT)
+    @Schema(description = "创建时间")
     private LocalDateTime createTime;
 
-    @TableField(value = "update_time", fill = FieldFill.INSERT_UPDATE)
+    @TableField(fill = FieldFill.INSERT_UPDATE)
+    @Schema(description = "更新时间")
     private LocalDateTime updateTime;
-
-    public enum Type {
-        STRING("STRING"),
-        NUMBER("NUMBER"),
-        BOOLEAN("BOOLEAN"),
-        JSON("JSON");
-
-        private final String value;
-
-        Type(String value) {
-            this.value = value;
-        }
-
-        public String getValue() {
-            return value;
-        }
-    }
-
-    public SystemSettings() {
-        this.type = Type.STRING.getValue();
-        this.isPublic = false;
-    }
-
-    public boolean isPublic() {
-        return Boolean.TRUE.equals(this.isPublic);
-    }
 }
