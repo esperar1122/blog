@@ -8,7 +8,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * 博客系统主启动类
  */
 @SpringBootApplication
-@MapperScan("com.example.blog.repository")
+@MapperScan("com.example.blog.mapper")
 public class BlogApplication {
 
     public static void main(String[] args) {

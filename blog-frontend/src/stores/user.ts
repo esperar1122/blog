@@ -1,8 +1,85 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { User } from 'blog-shared'
-import { authService } from '@/services/authService'
-import type { RegisterParams, LoginParams } from '@/api/auth'
+
+// 简化类型定义
+interface User {
+  id: number
+  username: string
+  nickname?: string
+  email: string
+  avatar?: string
+  role: 'USER' | 'ADMIN'
+  status: 'ACTIVE' | 'INACTIVE'
+  createTime: string
+  updateTime?: string
+}
+
+interface LoginParams {
+  username: string
+  password: string
+}
+
+interface RegisterParams {
+  username: string
+  password: string
+  confirmPassword: string
+  email: string
+  nickname?: string
+}
+
+// 简化的认证服务
+const authService = {
+  isAuthenticated(): boolean {
+    return !!localStorage.getItem('token')
+  },
+
+  getUserInfo(): User | null {
+    const userStr = localStorage.getItem('user')
+    return userStr ? JSON.parse(userStr) : null
+  },
+
+  async getCurrentUser(): Promise<User | null> {
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) return null
+
+      // 这里应该调用后端API获取当前用户信息
+      // 现在暂时从localStorage获取
+      return this.getUserInfo()
+    } catch (error) {
+      console.error('获取用户信息失败:', error)
+      return null
+    }
+  },
+
+  async login(credentials: LoginParams) {
+    // 这里应该调用真实的登录API
+    // 暂时返回模拟数据
+    const mockUser: User = {
+      id: 1,
+      username: credentials.username,
+      email: 'user@example.com',
+      role: 'USER',
+      status: 'ACTIVE',
+      createTime: new Date().toISOString()
+    }
+
+    localStorage.setItem('token', 'mock-token')
+    localStorage.setItem('user', JSON.stringify(mockUser))
+
+    return { user: mockUser, token: 'mock-token' }
+  },
+
+  async logout() {
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+  },
+
+  forceLogout() {
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+  }
+}
 
 export const useUserStore = defineStore('user', () => {
   const userInfo = ref<User | null>(null)

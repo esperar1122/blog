@@ -183,3 +183,17 @@ export enum ArticleOperationType {
   SCHEDULE_PUBLISH = 'SCHEDULE_PUBLISH',
   UPDATE = 'UPDATE'
 }
+
+// 分页相关类型
+export interface PaginationParams {
+  page: number
+  size: number
+}
+
+export interface PaginationResult<T> {
+  list: T[]
+  total: number
+  page: number
+  size: number
+  totalPages: number
+}

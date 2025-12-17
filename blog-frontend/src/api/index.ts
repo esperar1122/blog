@@ -2,7 +2,13 @@ import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosResponse 
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import router from '@/router'
-import type { ApiResponse } from 'blog-shared'
+// 简化类型定义
+interface ApiResponse<T = any> {
+  success: boolean
+  code: number
+  message: string
+  data: T
+}
 
 // 创建axios实例
 const request: AxiosInstance = axios.create({
