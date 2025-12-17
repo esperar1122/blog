@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.blog.mapper.CommentReportMapper">
+
+    <select id="selectReportsByStatus" resultType="com.example.blog.entity.CommentReport">
+        SELECT * FROM t_comment_report
+        <where>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+        </where>
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="selectReportsByCommentId" resultType="com.example.blog.entity.CommentReport">
+        SELECT * FROM t_comment_report
+        WHERE comment_id = #{commentId}
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="selectReportsByReporterId" resultType="com.example.blog.entity.CommentReport">
+        SELECT * FROM t_comment_report
+        WHERE reporter_id = #{reporterId}
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="selectReportsByDateRange" resultType="com.example.blog.entity.CommentReport">
+        SELECT * FROM t_comment_report
+        WHERE create_time >= #{startTime} AND create_time &lt;= #{endTime}
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="countReportsByStatus" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM t_comment_report
+        WHERE status = #{status}
+    </select>
+
+    <select id="existsByCommentIdAndReporterId" resultType="java.lang.Boolean">
+        SELECT COUNT(*) > 0 FROM t_comment_report
+        WHERE comment_id = #{commentId} AND reporter_id = #{reporterId}
+    </select>
+
+</mapper>

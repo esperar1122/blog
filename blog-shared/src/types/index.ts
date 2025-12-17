@@ -75,21 +75,42 @@ export interface Comment {
   id: number
   content: string
   articleId: number
-  article?: Article
-  authorId: number
-  author?: User
+  userId: number
+  user?: User
+  userName?: string
+  userAvatar?: string
   parentId?: number
-  parent?: Comment
-  children?: Comment[]
+  level: number
+  likeCount: number
+  isEdited: boolean
+  editedTime?: Date
   status: CommentStatus
-  createdAt: Date
-  updatedAt: Date
+  createTime: Date
+  updateTime: Date
+  replies?: Comment[]
+}
+
+export interface CreateCommentRequest {
+  content: string
+  articleId: number
+  parentId?: number
+}
+
+export interface UpdateCommentRequest {
+  content: string
+}
+
+export interface CommentQuery {
+  articleId: number
+  page?: number
+  size?: number
+  sortBy?: 'createTime' | 'likeCount'
+  sortOrder?: 'asc' | 'desc'
 }
 
 export enum CommentStatus {
-  PENDING = 'pending',
-  APPROVED = 'approved',
-  REJECTED = 'rejected'
+  NORMAL = 'NORMAL',
+  DELETED = 'DELETED'
 }
 
 // API Response types
@@ -114,3 +135,9 @@ export interface PaginationResult<T> {
   size: number
   totalPages: number
 }
+
+// Export moderation related types
+export * from './moderation'
+
+// Export search related types
+export * from './search'

@@ -32,6 +32,12 @@ public class Comment {
     @TableField("like_count")
     private Integer likeCount;
 
+    @TableField("is_edited")
+    private Boolean isEdited;
+
+    @TableField("edited_time")
+    private LocalDateTime editedTime;
+
     @TableField("status")
     private String status;
 
@@ -68,6 +74,7 @@ public class Comment {
     public Comment() {
         this.level = 1;
         this.likeCount = 0;
+        this.isEdited = false;
         this.status = Status.NORMAL.getValue();
     }
 
@@ -89,5 +96,10 @@ public class Comment {
 
     public void decrementLikeCount() {
         this.likeCount = Math.max(0, (this.likeCount == null ? 0 : this.likeCount) - 1);
+    }
+
+    public void markAsEdited() {
+        this.isEdited = true;
+        this.editedTime = LocalDateTime.now();
     }
 }

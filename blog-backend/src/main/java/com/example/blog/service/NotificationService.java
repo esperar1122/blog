@@ -39,4 +39,8 @@ public interface NotificationService {
     List<Notification> getRecentNotifications(Long userId, Integer limit);
 
     boolean batchDeleteNotifications(List<Long> ids, Long userId);
+
+    void sendCommentReplyNotification(Long userId, Long commentId, Long articleId);
+
+    void sendNewCommentNotification(Long userId, Long commentId, Long articleId);
 }

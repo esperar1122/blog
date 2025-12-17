@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.blog.mapper.CommentLikeMapper">
+
+    <select id="existsByCommentIdAndUserId" resultType="boolean">
+        SELECT COUNT(1) > 0
+        FROM t_comment_like
+        WHERE comment_id = #{commentId} AND user_id = #{userId}
+    </select>
+
+    <delete id="deleteByCommentIdAndUserId">
+        DELETE FROM t_comment_like
+        WHERE comment_id = #{commentId} AND user_id = #{userId}
+    </delete>
+
+    <select id="countByCommentId" resultType="int">
+        SELECT COUNT(*)
+        FROM t_comment_like
+        WHERE comment_id = #{commentId}
+    </select>
+
+</mapper>

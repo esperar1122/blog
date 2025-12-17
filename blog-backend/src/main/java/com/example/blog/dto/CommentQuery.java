@@ -1,0 +1,36 @@
+package com.example.blog.dto;
+
+import lombok.Data;
+
+import javax.validation.constraints.NotNull;
+
+@Data
+public class CommentQuery {
+
+    @NotNull(message = "文章ID不能为空")
+    private Long articleId;
+
+    private Integer page = 1;
+
+    private Integer size = 20;
+
+    private String sortBy = "createTime";
+
+    private String sortOrder = "desc";
+
+    public void setSortBy(String sortBy) {
+        if (sortBy == null || sortBy.trim().isEmpty()) {
+            this.sortBy = "createTime";
+        } else {
+            this.sortBy = sortBy;
+        }
+    }
+
+    public void setSortOrder(String sortOrder) {
+        if (sortOrder == null || sortOrder.trim().isEmpty()) {
+            this.sortOrder = "desc";
+        } else {
+            this.sortOrder = sortOrder;
+        }
+    }
+}

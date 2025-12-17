@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.blog.mapper.HotKeywordsMapper">
+
+    <select id="selectTopKeywords" resultType="com.example.blog.entity.HotKeywords">
+        SELECT
+            id,
+            keyword,
+            search_count,
+            position,
+            update_time
+        FROM t_hot_keywords
+        WHERE position > 0
+        ORDER BY position ASC, search_count DESC
+        LIMIT #{limit}
+    </select>
+
+    <update id="updateSearchCount">
+        UPDATE t_hot_keywords
+        SET search_count = search_count + 1,
+            update_time = NOW()
+        WHERE keyword = #{keyword}
+    </update>
+
+    <update id="updatePositions">
+        <foreach collection="keywords" item="item" separator=";">
+            UPDATE t_hot_keywords
+            SET position = #{item.position},
+                search_count = #{item.searchCount},
+                update_time = NOW()
+            WHERE id = #{item.id}
+        </foreach>
+    </update>
+
+    <update id="resetAllPositions">
+        UPDATE t_hot_keywords
+        SET position = 0
+    </update>
+
+    <select id="selectByKeyword" resultType="com.example.blog.entity.HotKeywords">
+        SELECT
+            id,
+            keyword,
+            search_count,
+            position,
+            update_time
+        FROM t_hot_keywords
+        WHERE keyword = #{keyword}
+    </select>
+
+    <insert id="insertOrUpdate">
+        INSERT INTO t_hot_keywords (keyword, search_count, position, update_time)
+        VALUES (#{keyword}, #{searchCount}, #{position}, NOW())
+        ON DUPLICATE KEY UPDATE
+            search_count = VALUES(search_count),
+            position = VALUES(position),
+            update_time = NOW()
+    </insert>
+
+</mapper>

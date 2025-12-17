@@ -18,7 +18,20 @@
             <el-menu-item index="/articles">文章</el-menu-item>
             <el-menu-item index="/categories">分类</el-menu-item>
             <el-menu-item index="/tags">标签</el-menu-item>
+            <el-menu-item index="/search">搜索</el-menu-item>
           </el-menu>
+
+          <!-- 全局搜索框 -->
+          <div class="global-search">
+            <SearchBox
+              v-model="globalSearchQuery"
+              placeholder="快速搜索..."
+              :show-history="false"
+              :show-suggestions="true"
+              :max-suggestions="5"
+              @search="handleGlobalSearch"
+            />
+          </div>
 
           <div class="header-actions">
             <template v-if="!isLoggedIn">
@@ -72,6 +85,7 @@ import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { ArrowDown } from '@element-plus/icons-vue';
 import { useUserStore } from '@/stores/user';
+import SearchBox from '@/components/search/SearchBox.vue';
 import zhCn from 'element-plus/es/locale/lang/zh-cn';
 
 const router = useRouter();
@@ -80,6 +94,19 @@ const locale = ref(zhCn);
 
 const isLoggedIn = computed(() => userStore.isLoggedIn);
 const isAdmin = computed(() => userStore.isAdmin);
+
+// 全局搜索
+const globalSearchQuery = ref('');
+
+// 处理全局搜索
+const handleGlobalSearch = (keyword: string) => {
+  if (keyword.trim()) {
+    router.push({
+      path: '/search',
+      query: { q: keyword.trim() }
+    });
+  }
+};
 
 // 处理下拉菜单命令
 const handleCommand = async (command: string) => {
@@ -138,7 +165,16 @@ const handleCommand = async (command: string) => {
   border: none;
   background: transparent;
   flex: 1;
-  margin: 0 40px;
+  margin: 0 20px;
+}
+
+.global-search {
+  width: 300px;
+  transition: width 0.3s ease;
+}
+
+.global-search:hover {
+  width: 320px;
 }
 
 .header-actions {
@@ -194,10 +230,16 @@ const handleCommand = async (command: string) => {
 @media (max-width: 768px) {
   .header-container {
     padding: 0 16px;
+    flex-wrap: wrap;
   }
 
   .nav-menu {
-    margin: 0 20px;
+    margin: 0;
+    flex: initial;
+  }
+
+  .global-search {
+    display: none;
   }
 
   .username {
