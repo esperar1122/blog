@@ -41,6 +41,14 @@
 
       <!-- 侧边栏 -->
       <el-col :xs="24" :lg="8">
+        <!-- 热门搜索 -->
+        <HotKeywords
+          :max-display="8"
+          :show-refresh="false"
+          class="mb-4"
+          @keyword-select="handleKeywordSelect"
+        />
+
         <!-- 热门标签 -->
         <el-card class="mb-4">
           <template #header>
@@ -99,6 +107,7 @@ import { getPopularTags } from '@/api/tag';
 import { getLatestArticles, getPopularArticles } from '@/api/article';
 import TagCloud from '@/components/tag/TagCloud.vue';
 import ArticleCard from '@/components/article/ArticleCard.vue';
+import HotKeywords from '@/components/search/HotKeywords.vue';
 import { formatDate } from '@/utils/date';
 
 const router = useRouter();
@@ -149,6 +158,14 @@ const handleTagClick = (tag: Tag) => {
 // 处理文章点击
 const handleArticleClick = (article: Article) => {
   router.push(`/articles/${article.id}`);
+};
+
+// 处理关键词选择
+const handleKeywordSelect = (keyword: string) => {
+  router.push({
+    path: '/search',
+    query: { q: keyword }
+  });
 };
 
 onMounted(() => {

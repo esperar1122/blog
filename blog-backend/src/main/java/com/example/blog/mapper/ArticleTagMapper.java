@@ -14,6 +14,8 @@ public interface ArticleTagMapper extends BaseMapper<ArticleTag> {
 
     List<Long> selectArticleIdsByTagId(@Param("tagId") Long tagId);
 
+    List<Long> selectArticleIdsByTagIds(@Param("tagIds") List<Long> tagIds);
+
     int insertArticleTags(@Param("articleId") Long articleId, @Param("tagIds") List<Long> tagIds);
 
     int deleteArticleTagsByArticleId(@Param("articleId") Long articleId);

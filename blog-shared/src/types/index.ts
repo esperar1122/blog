@@ -114,3 +114,6 @@ export interface PaginationResult<T> {
   size: number
   totalPages: number
 }
+
+// Export search related types
+export * from './search'

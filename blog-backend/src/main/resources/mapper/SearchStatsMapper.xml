@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.blog.mapper.SearchStatsMapper">
+
+    <update id="incrementSearchCount">
+        UPDATE t_search_stats
+        SET
+            search_count = search_count + 1,
+            avg_result_count = (avg_result_count * search_count + #{resultCount}) / (search_count + 1),
+            last_search_time = NOW()
+        WHERE keyword = #{keyword}
+    </update>
+
+    <update id="updateAvgResultCount">
+        UPDATE t_search_stats
+        SET avg_result_count = #{avgResultCount}
+        WHERE keyword = #{keyword}
+    </update>
+
+    <select id="selectTopSearchKeywords" resultType="com.example.blog.entity.SearchStats">
+        SELECT
+            id,
+            keyword,
+            search_count,
+            avg_result_count,
+            last_search_time
+        FROM t_search_stats
+        ORDER BY search_count DESC, last_search_time DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectByDateRange" resultType="com.example.blog.entity.SearchStats">
+        SELECT
+            id,
+            keyword,
+            search_count,
+            avg_result_count,
+            last_search_time
+        FROM t_search_stats
+        WHERE last_search_time BETWEEN #{startDate} AND #{endDate}
+        ORDER BY search_count DESC
+    </select>
+
+    <select id="getTotalSearchCount" resultType="long">
+        SELECT COALESCE(SUM(search_count), 0)
+        FROM t_search_stats
+    </select>
+
+    <select id="selectZeroResultKeywords" resultType="com.example.blog.entity.SearchStats">
+        SELECT
+            id,
+            keyword,
+            search_count,
+            avg_result_count,
+            last_search_time
+        FROM t_search_stats
+        WHERE avg_result_count = 0
+        ORDER BY search_count DESC
+    </select>
+
+</mapper>

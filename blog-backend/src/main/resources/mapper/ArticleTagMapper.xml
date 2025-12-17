@@ -14,6 +14,15 @@
         WHERE tag_id = #{tagId}
     </select>
 
+    <select id="selectArticleIdsByTagIds" resultType="java.lang.Long">
+        SELECT DISTINCT article_id
+        FROM t_article_tag
+        WHERE tag_id IN
+        <foreach collection="tagIds" item="tagId" open="(" separator="," close=")">
+            #{tagId}
+        </foreach>
+    </select>
+
     <insert id="insertArticleTags">
         INSERT INTO t_article_tag (article_id, tag_id, create_time)
         VALUES
