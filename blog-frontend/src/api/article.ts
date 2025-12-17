@@ -17,6 +17,16 @@ export function getArticles(params: ArticleQueryParams): Promise<ArticleListResp
   return get<ArticleListResponse>('/api/v1/articles', params)
 }
 
+// 兼容性API - 获取文章列表 (使用旧接口)
+export function getArticlesCompat(params: PaginationParams & {
+  categoryId?: number
+  tagId?: number
+  keyword?: string
+  status?: string
+}): Promise<PaginationResult<Article>> {
+  return get<PaginationResult<Article>>('/articles', params)
+}
+
 // 获取文章详情
 export function getArticle(id: number): Promise<ArticleDetailResponse> {
   return get<ArticleDetailResponse>(`/api/v1/articles/${id}`)
@@ -30,6 +40,21 @@ export function searchArticles(params: ArticleQueryParams): Promise<ArticleListR
 // 获取我的文章
 export function getMyArticles(params: ArticleQueryParams): Promise<ArticleListResponse> {
   return get<ArticleListResponse>('/api/v1/articles/my-articles', params)
+}
+
+// 获取最新文章
+export function getLatestArticles(limit = 10): Promise<Article[]> {
+  return get<Article[]>('/articles/latest', { limit })
+}
+
+// 获取热门文章
+export function getPopularArticles(limit = 10): Promise<Article[]> {
+  return get<Article[]>('/articles/popular', { limit })
+}
+
+// 获取标签下的文章列表
+export function getArticlesByTag(tagId: number, page = 1, size = 10) {
+  return get(`/tags/${tagId}/articles`, { page, size })
 }
 
 // 获取分类列表

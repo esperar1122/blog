@@ -29,6 +29,24 @@ const router = createRouter({
       meta: { title: '分类' }
     },
     {
+      path: '/category/:id',
+      name: 'category-detail',
+      component: () => import('@/views/CategoryDetailView.vue'),
+      meta: { title: '分类详情' }
+    },
+    {
+      path: '/tags',
+      name: 'tags',
+      component: () => import('@/views/TagsView.vue'),
+      meta: { title: '标签' }
+    },
+    {
+      path: '/tags/:id',
+      name: 'TagDetail',
+      component: () => import('@/views/TagDetailView.vue'),
+      meta: { title: '标签详情' }
+    },
+    {
       path: '/login',
       name: 'login',
       component: () => import('@/views/LoginView.vue'),
@@ -45,6 +63,36 @@ const router = createRouter({
       name: 'profile',
       component: () => import('@/views/ProfileView.vue'),
       meta: { title: '个人中心', requiresAuth: true }
+    },
+    {
+      path: '/admin',
+      name: 'admin',
+      redirect: '/admin/dashboard',
+      meta: { title: '管理后台', requiresAuth: true, requiresAdmin: true }
+    },
+    {
+      path: '/admin/dashboard',
+      name: 'admin-dashboard',
+      component: () => import('@/views/admin/DashboardView.vue'),
+      meta: { title: '仪表盘', requiresAuth: true, requiresAdmin: true }
+    },
+    {
+      path: '/admin/categories',
+      name: 'admin-categories',
+      component: () => import('@/views/admin/CategoryManagement.vue'),
+      meta: { title: '分类管理', requiresAuth: true, requiresAdmin: true }
+    },
+    {
+      path: '/admin/tags',
+      name: 'admin-tags',
+      component: () => import('@/views/admin/TagManagement.vue'),
+      meta: { title: '标签管理', requiresAuth: true, requiresAdmin: true }
+    },
+    {
+      path: '/admin/articles',
+      name: 'admin-articles',
+      component: () => import('@/views/admin/ArticleManagement.vue'),
+      meta: { title: '文章管理', requiresAuth: true, requiresAdmin: true }
     },
     {
       path: '/admin/users',
@@ -88,10 +136,32 @@ router.beforeEach(async (to, from, next) => {
     }
 
     // 检查是否需要管理员权限
-    if (to.meta.requiresAdmin && !userStore.isAdmin) {
-      // 可以重定向到首页或显示无权限页面
-      next({ name: 'home' })
-      return
+    if (to.meta.requiresAdmin) {
+      // 优先使用 userStore 的 isAdmin 方法
+      if (userStore.isAdmin !== undefined) {
+        if (!userStore.isAdmin) {
+          next({ name: 'home' })
+          return
+        }
+      } else {
+        // 回退到 localStorage 检查
+        const userStr = localStorage.getItem('user')
+        if (!userStr) {
+          next({ name: 'login', query: { redirect: to.fullPath } })
+          return
+        }
+
+        try {
+          const user = JSON.parse(userStr)
+          if (user.role !== 'ADMIN') {
+            next({ name: 'home' })
+            return
+          }
+        } catch (error) {
+          next({ name: 'login', query: { redirect: to.fullPath } })
+          return
+        }
+      }
     }
   }
 

@@ -58,10 +58,10 @@
       <div v-if="article.tags && article.tags.length > 0" class="flex flex-wrap gap-1 mb-4">
         <span
           v-for="tag in article.tags.slice(0, 3)"
-          :key="tag"
+          :key="tag.id || tag"
           class="px-2 py-1 bg-blue-100 text-blue-600 text-xs rounded-full"
         >
-          {{ tag }}
+          {{ tag.name || tag }}
         </span>
         <span
           v-if="article.tags.length > 3"
@@ -76,11 +76,11 @@
         <!-- 作者信息 -->
         <div class="flex items-center gap-2">
           <img
-            :src="article.authorAvatar || '/default-avatar.png'"
-            :alt="article.authorName"
+            :src="article.authorAvatar || article.author?.avatar || '/default-avatar.png'"
+            :alt="article.authorName || article.author?.nickname || '匿名'"
             class="w-5 h-5 rounded-full"
           />
-          <span class="truncate max-w-20">{{ article.authorName }}</span>
+          <span class="truncate max-w-20">{{ article.authorName || article.author?.nickname || '匿名' }}</span>
         </div>
 
         <!-- 统计信息 -->
@@ -102,7 +102,7 @@
 
       <!-- 发布时间 -->
       <div class="mt-2 text-xs text-gray-400">
-        {{ formatDate(article.publishTime) }}
+        {{ formatDate(article.publishTime || article.createdAt) }}
       </div>
     </div>
   </div>
