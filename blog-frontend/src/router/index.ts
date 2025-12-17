@@ -34,6 +34,18 @@ const router = createRouter({
       meta: { title: '分类详情' }
     },
     {
+      path: '/tags',
+      name: 'tags',
+      component: () => import('@/views/TagsView.vue'),
+      meta: { title: '标签' }
+    },
+    {
+      path: '/tags/:id',
+      name: 'TagDetail',
+      component: () => import('@/views/TagDetailView.vue'),
+      meta: { title: '标签详情' }
+    },
+    {
       path: '/login',
       name: 'login',
       component: () => import('@/views/LoginView.vue'),
@@ -68,6 +80,12 @@ const router = createRouter({
       name: 'admin-categories',
       component: () => import('@/views/admin/CategoryManagement.vue'),
       meta: { title: '分类管理', requiresAuth: true, requiresAdmin: true }
+    },
+    {
+      path: '/admin/tags',
+      name: 'admin-tags',
+      component: () => import('@/views/admin/TagManagement.vue'),
+      meta: { title: '标签管理', requiresAuth: true, requiresAdmin: true }
     },
     {
       path: '/admin/articles',

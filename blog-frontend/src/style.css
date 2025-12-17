@@ -1,0 +1,164 @@
+/* 全局样式 */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans',
+    sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  font-size: 14px;
+  line-height: 1.5;
+  color: #333;
+  background-color: #f5f7fa;
+}
+
+a {
+  color: #1890ff;
+  text-decoration: none;
+}
+
+a:hover {
+  color: #40a9ff;
+}
+
+/* 滚动条样式 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Element Plus 样式覆盖 */
+.el-card {
+  border-radius: 8px;
+  border: 1px solid #e4e7ed;
+}
+
+.el-card__header {
+  padding: 18px 20px;
+  border-bottom: 1px solid #e4e7ed;
+}
+
+.el-card__body {
+  padding: 20px;
+}
+
+/* 工具类 */
+.clearfix::after {
+  content: '';
+  display: table;
+  clear: both;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-left {
+  text-align: left;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.float-left {
+  float: left;
+}
+
+.float-right {
+  float: right;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.visible {
+  visibility: visible;
+}
+
+.invisible {
+  visibility: hidden;
+}
+
+/* 响应式断点 */
+@media (max-width: 575.98px) {
+  .hidden-xs {
+    display: none !important;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .hidden-sm {
+    display: none !important;
+  }
+}
+
+@media (max-width: 991.98px) {
+  .hidden-md {
+    display: none !important;
+  }
+}
+
+@media (max-width: 1199.98px) {
+  .hidden-lg {
+    display: none !important;
+  }
+}
+
+/* 动画 */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.slide-fade-enter-active {
+  transition: all 0.3s ease-out;
+}
+
+.slide-fade-leave-active {
+  transition: all 0.3s cubic-bezier(1, 0.5, 0.8, 1);
+}
+
+.slide-fade-enter-from,
+.slide-fade-leave-to {
+  transform: translateX(20px);
+  opacity: 0;
+}
+
+/* 打印样式 */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  .el-card {
+    border: 1px solid #000 !important;
+    box-shadow: none !important;
+  }
+}

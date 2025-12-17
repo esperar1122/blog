@@ -15,6 +15,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Slf4j
 @RestController
@@ -45,11 +46,21 @@ public class ArticleController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) Long tagId,
-            @RequestParam(required = false) String keyword) {
+            @RequestParam(required = false) List<Long> tagIds,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "OR") String tagLogic) {
 
         Page<Article> pageParam = new Page<>(page, size);
-        Page<Article> result = articleService.getPublishedArticlesWithPagination(pageParam, categoryId, tagId, keyword);
-        return Result.success(result);
+
+        // 如果提供了多个标签ID，使用多标签筛选逻辑
+        if (tagIds != null && !tagIds.isEmpty()) {
+            // 暂时使用第一个标签ID，完整的多标签逻辑需要在Service层实现
+            Page<Article> result = articleService.getPublishedArticlesWithPagination(pageParam, categoryId, tagIds.get(0), keyword);
+            return Result.success(result);
+        } else {
+            Page<Article> result = articleService.getPublishedArticlesWithPagination(pageParam, categoryId, tagId, keyword);
+            return Result.success(result);
+        }
     }
 
     @GetMapping("/{id}")

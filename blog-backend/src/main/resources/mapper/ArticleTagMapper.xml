@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.blog.mapper.ArticleTagMapper">
+
+    <select id="selectTagIdsByArticleId" resultType="java.lang.Long">
+        SELECT tag_id
+        FROM t_article_tag
+        WHERE article_id = #{articleId}
+    </select>
+
+    <select id="selectArticleIdsByTagId" resultType="java.lang.Long">
+        SELECT article_id
+        FROM t_article_tag
+        WHERE tag_id = #{tagId}
+    </select>
+
+    <insert id="insertArticleTags">
+        INSERT INTO t_article_tag (article_id, tag_id, create_time)
+        VALUES
+        <foreach collection="tagIds" item="tagId" separator=",">
+            (#{articleId}, #{tagId}, NOW())
+        </foreach>
+    </insert>
+
+    <delete id="deleteArticleTagsByArticleId">
+        DELETE FROM t_article_tag
+        WHERE article_id = #{articleId}
+    </delete>
+
+    <delete id="deleteArticleTagsByTagId">
+        DELETE FROM t_article_tag
+        WHERE tag_id = #{tagId}
+    </delete>
+
+    <delete id="deleteArticleTag">
+        DELETE FROM t_article_tag
+        WHERE article_id = #{articleId} AND tag_id = #{tagId}
+    </delete>
+
+    <select id="existsArticleTag" resultType="boolean">
+        SELECT COUNT(1) > 0
+        FROM t_article_tag
+        WHERE article_id = #{articleId} AND tag_id = #{tagId}
+    </select>
+
+    <select id="selectArticleTagsByArticleId" resultType="com.example.blog.entity.ArticleTag">
+        SELECT
+            article_id as articleId,
+            tag_id as tagId,
+            create_time as createTime
+        FROM t_article_tag
+        WHERE article_id = #{articleId}
+        ORDER BY create_time
+    </select>
+
+</mapper>
