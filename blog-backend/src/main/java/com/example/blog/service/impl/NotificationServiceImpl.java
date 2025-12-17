@@ -4,9 +4,13 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.example.blog.entity.Article;
 import com.example.blog.entity.Notification;
 import com.example.blog.exception.BusinessException;
+import com.example.blog.mapper.ArticleMapper;
+import com.example.blog.mapper.CommentMapper;
 import com.example.blog.mapper.NotificationMapper;
+import com.example.blog.mapper.UserMapper;
 import com.example.blog.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -20,6 +24,9 @@ import java.util.List;
 public class NotificationServiceImpl implements NotificationService {
 
     private final NotificationMapper notificationMapper;
+    private final ArticleMapper articleMapper;
+    private final CommentMapper commentMapper;
+    private final UserMapper userMapper;
 
     @Override
     @Transactional
@@ -135,5 +142,33 @@ public class NotificationServiceImpl implements NotificationService {
                    .in("id", ids);
 
         return notificationMapper.delete(queryWrapper) > 0;
+    }
+
+    @Override
+    @Transactional
+    public void sendCommentReplyNotification(Long userId, Long commentId, Long articleId) {
+        // Create notification for comment reply
+        Notification notification = new Notification();
+        notification.setUserId(userId);
+        notification.setType("COMMENT_REPLY");
+        notification.setTitle("收到新的评论回复");
+        notification.setContent("有人回复了您的评论");
+        notification.setRelatedId(commentId);
+        notification.setRelatedType("COMMENT");
+        createNotification(notification);
+    }
+
+    @Override
+    @Transactional
+    public void sendNewCommentNotification(Long userId, Long commentId, Long articleId) {
+        // Create notification for new comment on article
+        Notification notification = new Notification();
+        notification.setUserId(userId);
+        notification.setType("NEW_COMMENT");
+        notification.setTitle("收到新的评论");
+        notification.setContent("有人在您的文章下发表了评论");
+        notification.setRelatedId(articleId);
+        notification.setRelatedType("ARTICLE");
+        createNotification(notification);
     }
 }
