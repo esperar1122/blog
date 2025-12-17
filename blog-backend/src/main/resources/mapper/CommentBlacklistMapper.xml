@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.blog.mapper.CommentBlacklistMapper">
+
+    <select id="selectActiveBlacklist" resultType="com.example.blog.entity.CommentBlacklist">
+        SELECT * FROM t_comment_blacklist
+        WHERE expire_time IS NULL OR expire_time > NOW()
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="isUserBlacklisted" resultType="java.lang.Boolean">
+        SELECT COUNT(*) > 0 FROM t_comment_blacklist
+        WHERE user_id = #{userId}
+        AND (expire_time IS NULL OR expire_time > NOW())
+    </select>
+
+    <select id="selectByUserId" resultType="com.example.blog.entity.CommentBlacklist">
+        SELECT * FROM t_comment_blacklist
+        WHERE user_id = #{userId}
+        ORDER BY create_time DESC
+        LIMIT 1
+    </select>
+
+    <delete id="deleteExpiredEntries">
+        DELETE FROM t_comment_blacklist
+        WHERE expire_time IS NOT NULL AND expire_time &lt;= NOW()
+    </delete>
+
+    <select id="selectByBlacklistedBy" resultType="com.example.blog.entity.CommentBlacklist">
+        SELECT * FROM t_comment_blacklist
+        WHERE blacklisted_by = #{blacklistedBy}
+        ORDER BY create_time DESC
+    </select>
+
+</mapper>

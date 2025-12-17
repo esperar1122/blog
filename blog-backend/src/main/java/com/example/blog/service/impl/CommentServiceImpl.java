@@ -20,6 +20,7 @@ import com.example.blog.mapper.CommentMapper;
 import com.example.blog.mapper.UserMapper;
 import com.example.blog.service.CommentService;
 import com.example.blog.service.NotificationService;
+import com.example.blog.service.SensitiveWordService;
 import com.example.blog.util.HtmlUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -38,6 +39,7 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
     private final UserMapper userMapper;
     private final ArticleMapper articleMapper;
     private final NotificationService notificationService;
+    private final SensitiveWordService sensitiveWordService;
 
     private static final int MAX_NESTING_LEVEL = 5;
 
@@ -70,9 +72,20 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
             }
         }
 
+        // Check for sensitive words
+        String cleanedContent = HtmlUtils.cleanHtml(request.getContent());
+
+        // Check for blocked words
+        if (sensitiveWordService.containsBlockedWords(cleanedContent)) {
+            throw new BusinessException("评论内容包含不当词汇，无法发布");
+        }
+
+        // Filter sensitive words
+        String filteredContent = sensitiveWordService.filterSensitiveWords(cleanedContent);
+
         // Create comment
         Comment comment = new Comment();
-        comment.setContent(HtmlUtils.cleanHtml(request.getContent()));
+        comment.setContent(filteredContent);
         comment.setArticleId(request.getArticleId());
         comment.setUserId(userId);
         comment.setParentId(request.getParentId());
@@ -112,7 +125,25 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
             throw new BusinessException("已删除的评论不能编辑");
         }
 
-        comment.setContent(HtmlUtils.cleanHtml(request.getContent()));
+        // Check time limit for editing (30 minutes)
+        LocalDateTime thirtyMinutesAgo = LocalDateTime.now().minusMinutes(30);
+        if (comment.getCreateTime().isBefore(thirtyMinutesAgo)) {
+            throw new BusinessException("评论发布超过30分钟后无法编辑");
+        }
+
+        // Check for sensitive words in updated content
+        String cleanedContent = HtmlUtils.cleanHtml(request.getContent());
+
+        // Check for blocked words
+        if (sensitiveWordService.containsBlockedWords(cleanedContent)) {
+            throw new BusinessException("评论内容包含不当词汇，无法更新");
+        }
+
+        // Filter sensitive words
+        String filteredContent = sensitiveWordService.filterSensitiveWords(cleanedContent);
+
+        comment.setContent(filteredContent);
+        comment.markAsEdited();
         updateById(comment);
 
         return comment;

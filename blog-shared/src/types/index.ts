@@ -82,6 +82,8 @@ export interface Comment {
   parentId?: number
   level: number
   likeCount: number
+  isEdited: boolean
+  editedTime?: Date
   status: CommentStatus
   createTime: Date
   updateTime: Date
@@ -133,6 +135,9 @@ export interface PaginationResult<T> {
   size: number
   totalPages: number
 }
+
+// Export moderation related types
+export * from './moderation'
 
 // Export search related types
 export * from './search'

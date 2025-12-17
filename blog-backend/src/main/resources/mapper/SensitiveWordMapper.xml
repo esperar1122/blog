@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.blog.mapper.SensitiveWordMapper">
+
+    <select id="selectWordsByType" resultType="com.example.blog.entity.SensitiveWord">
+        SELECT * FROM t_sensitive_word
+        WHERE type = #{type}
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="selectAllActiveWords" resultType="com.example.blog.entity.SensitiveWord">
+        SELECT * FROM t_sensitive_word
+        ORDER BY type, create_time DESC
+    </select>
+
+    <select id="existsByWord" resultType="java.lang.Boolean">
+        SELECT COUNT(*) > 0 FROM t_sensitive_word
+        WHERE word = #{word}
+    </select>
+
+    <select id="selectWordsByPattern" resultType="com.example.blog.entity.SensitiveWord">
+        SELECT * FROM t_sensitive_word
+        WHERE pattern LIKE CONCAT('%', #{pattern}, '%')
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="countWordsByType" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM t_sensitive_word
+        WHERE type = #{type}
+    </select>
+
+</mapper>
