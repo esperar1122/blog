@@ -1,0 +1,39 @@
+package com.example.blog.dto.request;
+
+import lombok.Data;
+import javax.validation.constraints.NotEmpty;
+import javax.validation.constraints.NotBlank;
+import java.util.List;
+
+@Data
+public class BatchOperationRequest {
+
+    @NotBlank(message = "操作类型不能为空")
+    private String operationType;
+
+    @NotEmpty(message = "ID列表不能为空")
+    private List<Long> ids;
+
+    private String targetType;
+
+    private String newStatus;
+
+    private String reason;
+
+    public enum OperationType {
+        DELETE("delete"),
+        UPDATE_STATUS("update_status"),
+        PUBLISH("publish"),
+        UNPUBLISH("unpublish");
+
+        private final String value;
+
+        OperationType(String value) {
+            this.value = value;
+        }
+
+        public String getValue() {
+            return value;
+        }
+    }
+}

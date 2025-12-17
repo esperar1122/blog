@@ -1,0 +1,29 @@
+package com.example.blog.dto.request;
+
+import lombok.Data;
+import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.NotNull;
+
+@Data
+public class ArticleReviewRequest {
+
+    @NotNull(message = "文章ID不能为空")
+    private Long id;
+
+    @NotBlank(message = "文章标题不能为空")
+    private String title;
+
+    @NotBlank(message = "文章内容不能为空")
+    private String content;
+
+    private String summary;
+
+    private String coverImage;
+
+    @NotBlank(message = "文章状态不能为空")
+    private String status;
+
+    private Long categoryId;
+
+    private String reviewNote;
+}

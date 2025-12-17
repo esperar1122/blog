@@ -1,8 +1,19 @@
+# <!-- Powered by BMAD™ Core -->
+template:
+  id: qa-gate-template-v1
+  name: Quality Gate Decision
+  version: 1.0
+  output:
+    format: yaml
+    filename: qa.qaLocation/gates/{{epic_num}}.{{story_num}}-{{story_slug}}.yml
+    title: "Quality Gate: {{epic_num}}.{{story_num}}"
+
+# Required fields (keep these first)
 schema: 1
 story: "5.1"
 story_title: "User Management"
 gate: "PASS"
-status_reason: "所有接受标准已满足，测试覆盖完整，代码质量良好"
+status_reason: "实现了完整的用户管理功能，包括所有API、前端界面、权限控制和测试覆盖"
 reviewer: "Quinn (Test Architect)"
 updated: "2025-12-16T16:30:00Z"
 

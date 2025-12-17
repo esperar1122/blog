@@ -107,6 +107,12 @@ const router = createRouter({
       meta: { title: '用户管理', requiresAuth: true, requiresAdmin: true }
     },
     {
+      path: '/admin/content',
+      name: 'admin-content',
+      component: () => import('@/views/admin/AdminDashboard.vue'),
+      meta: { title: '内容管理', requiresAuth: true, requiresAdmin: true }
+    },
+    {
       path: '/:pathMatch(.*)*',
       name: 'not-found',
       component: () => import('@/views/NotFoundView.vue'),

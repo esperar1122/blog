@@ -1,5 +1,6 @@
 package com.example.blog.service;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.example.blog.dto.SensitiveWordRequest;
 import com.example.blog.entity.SensitiveWord;
@@ -8,16 +9,27 @@ import java.util.List;
 
 public interface SensitiveWordService extends IService<SensitiveWord> {
 
-    /**
-     * Filter sensitive words in text
-     */
+    // Epic5 - Basic CRUD operations
+    IPage<SensitiveWord> getWordList(int page, int size, String keyword, String status);
+
+    SensitiveWord addWord(SensitiveWord sensitiveWord);
+
+    SensitiveWord updateWord(Long id, SensitiveWord sensitiveWord);
+
+    void deleteWord(Long id);
+
+    void updateWordStatus(Long id, String status);
+
+    List<SensitiveWord> getActiveWords();
+
+    // Common methods from both versions
     String filterSensitiveWords(String text);
 
-    /**
-     * Check if text contains blocked words
-     */
+    boolean containsSensitiveWord(String content);
+
     boolean containsBlockedWords(String text);
 
+    // HEAD version specific methods
     /**
      * Get warning words in text
      */

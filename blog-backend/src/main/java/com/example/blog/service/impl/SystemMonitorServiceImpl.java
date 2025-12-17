@@ -1,0 +1,546 @@
+package com.example.blog.service.impl;
+
+import com.example.blog.dto.response.DatabaseStatusResponse;
+import com.example.blog.dto.response.RedisStatusResponse;
+import com.example.blog.dto.response.SystemMetricsResponse;
+import com.example.blog.dto.response.SystemStatusResponse;
+import com.example.blog.service.SystemMonitorService;
+import com.example.blog.utils.SensitiveDataUtil;
+import io.micrometer.core.instrument.MeterRegistry;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.actuator.health.Health;
+import org.springframework.boot.actuator.health.HealthIndicator;
+import org.springframework.boot.actuator.health.Status;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.stereotype.Service;
+
+import javax.sql.DataSource;
+import java.io.File;
+import java.lang.management.*;
+import java.sql.Connection;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
+import com.zaxxer.hikari.HikariDataSource;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class SystemMonitorServiceImpl implements SystemMonitorService {
+
+    private final DataSource dataSource;
+    private final RedisTemplate<String, Object> redisTemplate;
+    private final MeterRegistry meterRegistry;
+    private final RuntimeMXBean runtimeMXBean = ManagementFactory.getRuntimeMXBean();
+    private final MemoryMXBean memoryMXBean = ManagementFactory.getMemoryMXBean();
+    private final ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
+    private final OperatingSystemMXBean operatingSystemMXBean = ManagementFactory.getOperatingSystemMXBean();
+    private final ClassLoadingMXBean classLoadingMXBean = ManagementFactory.getClassLoadingMXBean();
+    private final List<GarbageCollectorMXBean> gcMXBeans = ManagementFactory.getGarbageCollectorMXBeans();
+
+    @Override
+    @Cacheable(value = "systemStatus", key = "'current'", unless = "#result == null")
+    public SystemStatusResponse getSystemStatus() {
+        log.debug("获取系统状态概览");
+
+        SystemStatusResponse response = new SystemStatusResponse();
+
+        // 系统基本信息
+        response.setStartTime(convertToLocalDateTime(runtimeMXBean.getStartTime()));
+        response.setUptime(System.currentTimeMillis() - runtimeMXBean.getStartTime());
+        response.setLastUpdated(LocalDateTime.now());
+
+        // CPU使用率
+        try {
+            com.sun.management.OperatingSystemMXBean osBean =
+                (com.sun.management.OperatingSystemMXBean) operatingSystemMXBean;
+            response.setCpuUsage(osBean.getProcessCpuLoad() * 100);
+            response.setSystemLoad(osBean.getSystemLoadAverage());
+        } catch (Exception e) {
+            log.warn("获取CPU信息失败", e);
+            response.setCpuUsage(0.0);
+            response.setSystemLoad(0.0);
+        }
+
+        // 内存使用情况
+        MemoryUsage heapUsage = memoryMXBean.getHeapMemoryUsage();
+        MemoryUsage nonHeapUsage = memoryMXBean.getNonHeapMemoryUsage();
+
+        long totalMemory = heapUsage.getMax();
+        long usedMemory = heapUsage.getUsed();
+        response.setMemoryUsage((double) usedMemory / totalMemory * 100);
+        response.setUsedMemory(usedMemory / 1024 / 1024);
+        response.setTotalMemory(totalMemory / 1024 / 1024);
+
+        // 磁盘使用情况
+        try {
+            File root = new File("/");
+            long totalSpace = root.getTotalSpace();
+            long freeSpace = root.getFreeSpace();
+            long usedSpace = totalSpace - freeSpace;
+            response.setDiskUsage((double) usedSpace / totalSpace * 100);
+            response.setUsedDiskSpace(usedSpace / 1024 / 1024 / 1024);
+            response.setTotalDiskSpace(totalSpace / 1024 / 1024 / 1024);
+        } catch (Exception e) {
+            log.warn("获取磁盘信息失败", e);
+            response.setDiskUsage(0.0);
+        }
+
+        // 线程信息
+        response.setActiveThreads(threadMXBean.getThreadCount());
+
+        // 组件状态
+        response.setApplicationStatus("UP");
+        response.setDatabaseStatus(checkDatabaseStatus() ? "UP" : "DOWN");
+        response.setRedisStatus(checkRedisStatus() ? "UP" : "DOWN");
+
+        // 整体状态
+        response.setStatus(calculateOverallStatus(response));
+
+        return response;
+    }
+
+    @Override
+    @Cacheable(value = "systemMetrics", key = "'current'", unless = "#result == null")
+    public SystemMetricsResponse getSystemMetrics() {
+        log.debug("获取系统性能指标");
+
+        SystemMetricsResponse response = new SystemMetricsResponse();
+
+        // JVM内存指标
+        response.setJvmMemory(getJvmMemoryMetrics());
+
+        // CPU指标
+        response.setCpu(getCpuMetrics());
+
+        // 系统内存指标
+        response.setMemory(getMemoryMetrics());
+
+        // 垃圾回收指标
+        response.setGarbageCollection(getGarbageCollectionMetrics());
+
+        // 线程指标
+        response.setThreads(getThreadMetrics());
+
+        // 类加载指标
+        response.setClassLoading(getClassLoadingMetrics());
+
+        // 自定义指标
+        response.setCustomMetrics(getCustomMetrics());
+
+        return response;
+    }
+
+    @Override
+    @Cacheable(value = "healthCheck", key = "'current'", unless = "#result == null")
+    public Map<String, Object> healthCheck() {
+        log.debug("执行系统健康检查");
+
+        Map<String, Object> health = new HashMap<>();
+
+        // 数据库健康检查
+        Map<String, Object> dbHealth = new HashMap<>();
+        dbHealth.put("status", checkDatabaseStatus() ? "UP" : "DOWN");
+        dbHealth.put("details", getDatabaseHealthDetails());
+        health.put("database", dbHealth);
+
+        // Redis健康检查
+        Map<String, Object> redisHealth = new HashMap<>();
+        redisHealth.put("status", checkRedisStatus() ? "UP" : "DOWN");
+        redisHealth.put("details", getRedisHealthDetails());
+        health.put("redis", redisHealth);
+
+        // 磁盘空间健康检查
+        Map<String, Object> diskHealth = new HashMap<>();
+        diskHealth.put("status", checkDiskSpace() ? "UP" : "DOWN");
+        diskHealth.put("details", getDiskSpaceDetails());
+        health.put("diskSpace", diskHealth);
+
+        // 内存健康检查
+        Map<String, Object> memoryHealth = new HashMap<>();
+        memoryHealth.put("status", checkMemoryUsage() ? "UP" : "DOWN");
+        memoryHealth.put("details", getMemoryHealthDetails());
+        health.put("memory", memoryHealth);
+
+        // 整体状态
+        boolean allHealthy = health.values().stream()
+            .map(map -> (Map<String, Object>) map)
+            .allMatch(component -> "UP".equals(component.get("status")));
+
+        health.put("status", allHealthy ? "UP" : "DOWN");
+        health.put("timestamp", LocalDateTime.now().toString());
+
+        return health;
+    }
+
+    @Override
+    @Cacheable(value = "databaseStatus", key = "'current'", unless = "#result == null")
+    public DatabaseStatusResponse getDatabaseStatus() {
+        log.debug("获取数据库状态监控");
+
+        DatabaseStatusResponse response = new DatabaseStatusResponse();
+
+        try (Connection connection = dataSource.getConnection()) {
+            response.setStatus("UP");
+            response.setUrl(SensitiveDataUtil.maskDatabaseUrl(connection.getMetaData().getURL()));
+            response.setVersion(connection.getMetaData().getDatabaseProductVersion());
+
+            // 获取连接池信息
+            if (dataSource instanceof HikariDataSource) {
+                HikariDataSource hikariDS = (HikariDataSource) dataSource;
+                DatabaseStatusResponse.ConnectionPoolStatus poolStatus = new DatabaseStatusResponse.ConnectionPoolStatus();
+                poolStatus.setActive(hikariDS.getHikariPoolMXBean().getActiveConnections());
+                poolStatus.setIdle(hikariDS.getHikariPoolMXBean().getIdleConnections());
+                poolStatus.setTotal(hikariDS.getHikariPoolMXBean().getTotalConnections());
+                poolStatus.setMax(hikariDS.getMaximumPoolSize());
+                poolStatus.setMinIdle(hikariDS.getMinimumIdle());
+                poolStatus.setUsagePercent((double) poolStatus.getTotal() / hikariDS.getMaximumPoolSize() * 100);
+                response.setConnectionPool(poolStatus);
+            }
+
+            // 获取数据库性能指标
+            response.setMetrics(getDatabaseMetrics(connection));
+
+            response.setLastUpdated(LocalDateTime.now());
+
+        } catch (Exception e) {
+            log.error("获取数据库状态失败", e);
+            response.setStatus("DOWN");
+        }
+
+        return response;
+    }
+
+    @Override
+    @Cacheable(value = "redisStatus", key = "'current'", unless = "#result == null")
+    public RedisStatusResponse getRedisStatus() {
+        log.debug("获取Redis状态监控");
+
+        RedisStatusResponse response = new RedisStatusResponse();
+
+        try {
+            Properties info = (Properties) redisTemplate.getConnectionFactory()
+                .getConnection().info();
+
+            response.setStatus("UP");
+            response.setVersion(info.getProperty("redis_version"));
+            response.setMode(info.getProperty("redis_mode"));
+            response.setOs(info.getProperty("os"));
+            response.setArch(info.getProperty("arch_bits") + " bit");
+            response.setProcessId(Integer.parseInt(info.getProperty("process_id")));
+            response.setUptimeInSeconds(Long.parseLong(info.getProperty("uptime_in_seconds")));
+
+            // 客户端信息
+            RedisStatusResponse.ClientInfo clientInfo = new RedisStatusResponse.ClientInfo();
+            clientInfo.setConnectedClients(Integer.parseInt(info.getProperty("connected_clients")));
+            clientInfo.setBlockedClients(Integer.parseInt(info.getProperty("blocked_clients")));
+            response.setClientInfo(clientInfo);
+
+            // 内存信息
+            RedisStatusResponse.MemoryInfo memoryInfo = new RedisStatusResponse.MemoryInfo();
+            memoryInfo.setUsedMemory(Long.parseLong(info.getProperty("used_memory")));
+            memoryInfo.setUsedMemoryPeak(Long.parseLong(info.getProperty("used_memory_peak")));
+            memoryInfo.setMemFragmentationRatio(Double.parseDouble(info.getProperty("mem_fragmentation_ratio")));
+            memoryInfo.setMemoryUsagePercent(memoryInfo.getUsedMemory() * 100.0 / Long.parseLong(info.getProperty("maxmemory")));
+            response.setMemoryInfo(memoryInfo);
+
+            // 统计信息
+            RedisStatusResponse.StatsInfo statsInfo = new RedisStatusResponse.StatsInfo();
+            statsInfo.setTotalConnectionsReceived(Long.parseLong(info.getProperty("total_connections_received")));
+            statsInfo.setTotalCommandsProcessed(Long.parseLong(info.getProperty("total_commands_processed")));
+            long hits = Long.parseLong(info.getProperty("keyspace_hits"));
+            long misses = Long.parseLong(info.getProperty("keyspace_misses"));
+            statsInfo.setKeyspaceHits(hits);
+            statsInfo.setKeyspaceMisses(misses);
+            statsInfo.setHitRate(hits + misses > 0 ? (double) hits / (hits + misses) * 100 : 0.0);
+            response.setStatsInfo(statsInfo);
+
+            response.setLastUpdated(LocalDateTime.now());
+
+        } catch (Exception e) {
+            log.error("获取Redis状态失败", e);
+            response.setStatus("DOWN");
+        }
+
+        return response;
+    }
+
+    @Override
+    public Map<String, Object> getApplicationInfo() {
+        Map<String, Object> info = new HashMap<>();
+
+        info.put("name", "Blog System");
+        info.put("version", "1.0.0");
+        info.put("description", "Spring Boot Blog System");
+        info.put("startTime", convertToLocalDateTime(runtimeMXBean.getStartTime()).toString());
+        info.put("uptime", runtimeMXBean.getUptime());
+        info.put("javaVersion", System.getProperty("java.version"));
+        info.put("javaVendor", System.getProperty("java.vendor"));
+        info.put("springBootVersion", "3.2.0");
+        info.put("profiles", Arrays.asList("default"));
+
+        return info;
+    }
+
+    @Override
+    public Map<String, Object> getSystemLoad() {
+        Map<String, Object> load = new HashMap<>();
+
+        try {
+            com.sun.management.OperatingSystemMXBean osBean =
+                (com.sun.management.OperatingSystemMXBean) operatingSystemMXBean;
+
+            load.put("systemLoadAverage", osBean.getSystemLoadAverage());
+            load.put("availableProcessors", osBean.getAvailableProcessors());
+            load.put("systemCpuLoad", osBean.getSystemCpuLoad() * 100);
+            load.put("processCpuLoad", osBean.getProcessCpuLoad() * 100);
+            load.put("totalPhysicalMemory", osBean.getTotalPhysicalMemorySize());
+            load.put("freePhysicalMemory", osBean.getFreePhysicalMemorySize());
+            load.put("totalSwapSpace", osBean.getTotalSwapSpaceSize());
+            load.put("freeSwapSpace", osBean.getFreeSwapSpaceSize());
+
+        } catch (Exception e) {
+            log.error("获取系统负载信息失败", e);
+        }
+
+        return load;
+    }
+
+    // 私有辅助方法
+
+    private LocalDateTime convertToLocalDateTime(long timestamp) {
+        return LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneId.systemDefault());
+    }
+
+    private boolean checkDatabaseStatus() {
+        try (Connection connection = dataSource.getConnection()) {
+            return connection.isValid(5);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private boolean checkRedisStatus() {
+        try {
+            redisTemplate.opsForValue().get("health_check");
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private boolean checkDiskSpace() {
+        try {
+            File root = new File("/");
+            long freeSpace = root.getFreeSpace();
+            long totalSpace = root.getTotalSpace();
+            return (double) freeSpace / totalSpace > 0.1; // 剩余空间大于10%
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private boolean checkMemoryUsage() {
+        MemoryUsage heapUsage = memoryMXBean.getHeapMemoryUsage();
+        return (double) heapUsage.getUsed() / heapUsage.getMax() < 0.9; // 内存使用率小于90%
+    }
+
+    private String calculateOverallStatus(SystemStatusResponse status) {
+        if ("UP".equals(status.getApplicationStatus()) &&
+            "UP".equals(status.getDatabaseStatus()) &&
+            "UP".equals(status.getRedisStatus())) {
+            return "UP";
+        } else {
+            return "DOWN";
+        }
+    }
+
+    private SystemMetricsResponse.JvmMemoryMetrics getJvmMemoryMetrics() {
+        SystemMetricsResponse.JvmMemoryMetrics jvmMemory = new SystemMetricsResponse.JvmMemoryMetrics();
+
+        MemoryUsage heapUsage = memoryMXBean.getHeapMemoryUsage();
+        MemoryUsage nonHeapUsage = memoryMXBean.getNonHeapMemoryUsage();
+
+        jvmMemory.setUsedHeapMemory(heapUsage.getUsed() / 1024 / 1024);
+        jvmMemory.setMaxHeapMemory(heapUsage.getMax() / 1024 / 1024);
+        jvmMemory.setHeapMemoryUsage((double) heapUsage.getUsed() / heapUsage.getMax() * 100);
+        jvmMemory.setUsedNonHeapMemory(nonHeapUsage.getUsed() / 1024 / 1024);
+        jvmMemory.setMaxNonHeapMemory(nonHeapUsage.getMax() / 1024 / 1024);
+        jvmMemory.setNonHeapMemoryUsage(nonHeapUsage.getMax() > 0 ?
+            (double) nonHeapUsage.getUsed() / nonHeapUsage.getMax() * 100 : 0);
+
+        return jvmMemory;
+    }
+
+    private SystemMetricsResponse.CpuMetrics getCpuMetrics() {
+        SystemMetricsResponse.CpuMetrics cpu = new SystemMetricsResponse.CpuMetrics();
+
+        try {
+            com.sun.management.OperatingSystemMXBean osBean =
+                (com.sun.management.OperatingSystemMXBean) operatingSystemMXBean;
+            cpu.setSystemCpuUsage(osBean.getSystemCpuLoad() * 100);
+            cpu.setProcessCpuUsage(osBean.getProcessCpuLoad() * 100);
+            cpu.setAvailableProcessors(osBean.getAvailableProcessors());
+            cpu.setSystemLoadAverage(osBean.getSystemLoadAverage());
+        } catch (Exception e) {
+            log.warn("获取CPU指标失败", e);
+        }
+
+        return cpu;
+    }
+
+    private SystemMetricsResponse.MemoryMetrics getMemoryMetrics() {
+        SystemMetricsResponse.MemoryMetrics memory = new SystemMetricsResponse.MemoryMetrics();
+
+        try {
+            com.sun.management.OperatingSystemMXBean osBean =
+                (com.sun.management.OperatingSystemMXBean) operatingSystemMXBean;
+            memory.setTotalSystemMemory(osBean.getTotalPhysicalMemorySize() / 1024 / 1024);
+            memory.setFreeSystemMemory(osBean.getFreePhysicalMemorySize() / 1024 / 1024);
+            memory.setUsedSystemMemory((osBean.getTotalPhysicalMemorySize() - osBean.getFreePhysicalMemorySize()) / 1024 / 1024);
+            memory.setSystemMemoryUsage((double) memory.getUsedSystemMemory() / memory.getTotalSystemMemory() * 100);
+            memory.setTotalSwapSpace(osBean.getTotalSwapSpaceSize() / 1024 / 1024);
+            memory.setUsedSwapSpace((osBean.getTotalSwapSpaceSize() - osBean.getFreeSwapSpaceSize()) / 1024 / 1024);
+            memory.setSwapSpaceUsage(memory.getTotalSwapSpace() > 0 ?
+                (double) memory.getUsedSwapSpace() / memory.getTotalSwapSpace() * 100 : 0);
+        } catch (Exception e) {
+            log.warn("获取系统内存指标失败", e);
+        }
+
+        return memory;
+    }
+
+    private List<SystemMetricsResponse.GcMetrics> getGarbageCollectionMetrics() {
+        List<SystemMetricsResponse.GcMetrics> gcMetrics = new ArrayList<>();
+
+        for (GarbageCollectorMXBean gcBean : gcMXBeans) {
+            SystemMetricsResponse.GcMetrics gc = new SystemMetricsResponse.GcMetrics();
+            gc.setName(gcBean.getName());
+            gc.setCollectionCount(gcBean.getCollectionCount());
+            gc.setCollectionTime(gcBean.getCollectionTime());
+            gcMetrics.add(gc);
+        }
+
+        return gcMetrics;
+    }
+
+    private SystemMetricsResponse.ThreadMetrics getThreadMetrics() {
+        SystemMetricsResponse.ThreadMetrics threads = new SystemMetricsResponse.ThreadMetrics();
+
+        threads.setThreadCount(threadMXBean.getThreadCount());
+        threads.setPeakThreadCount(threadMXBean.getPeakThreadCount());
+        threads.setDaemonThreadCount(threadMXBean.getDaemonThreadCount());
+        threads.setTotalStartedThreadCount(threadMXBean.getTotalStartedThreadCount());
+
+        try {
+            threads.setBlockedThreadCount(threadMXBean.getThreadInfo(threadMXBean.getAllThreadIds()).length);
+            threads.setWaitingThreadCount(threadMXBean.findMonitorDeadlockedThreads() != null ?
+                threadMXBean.findMonitorDeadlockedThreads().length : 0);
+        } catch (Exception e) {
+            log.warn("获取线程状态失败", e);
+        }
+
+        return threads;
+    }
+
+    private SystemMetricsResponse.ClassLoadingMetrics getClassLoadingMetrics() {
+        SystemMetricsResponse.ClassLoadingMetrics classLoading = new SystemMetricsResponse.ClassLoadingMetrics();
+
+        classLoading.setLoadedClassCount(classLoadingMXBean.getLoadedClassCount());
+        classLoading.setTotalLoadedClassCount(classLoadingMXBean.getTotalLoadedClassCount());
+        classLoading.setUnloadedClassCount(classLoadingMXBean.getUnloadedClassCount());
+
+        return classLoading;
+    }
+
+    private Map<String, Object> getCustomMetrics() {
+        Map<String, Object> custom = new HashMap<>();
+
+        // 从MeterRegistry获取自定义指标
+        meterRegistry.getMeters().forEach(meter -> {
+            custom.put(meter.getId().getName(), meter.measure());
+        });
+
+        return custom;
+    }
+
+    private Map<String, Object> getDatabaseHealthDetails() {
+        Map<String, Object> details = new HashMap<>();
+        try (Connection connection = dataSource.getConnection()) {
+            details.put("url", SensitiveDataUtil.maskDatabaseUrl(connection.getMetaData().getURL()));
+            details.put("validationQuery", "SELECT 1");
+            details.put("responseTime", "< 5ms");
+        } catch (Exception e) {
+            details.put("error", e.getMessage());
+        }
+        return details;
+    }
+
+    private Map<String, Object> getRedisHealthDetails() {
+        Map<String, Object> details = new HashMap<>();
+        try {
+            Properties info = (Properties) redisTemplate.getConnectionFactory()
+                .getConnection().info();
+            details.put("connected_clients", info.getProperty("connected_clients"));
+            details.put("used_memory", info.getProperty("used_memory"));
+            details.put("uptime_in_seconds", info.getProperty("uptime_in_seconds"));
+        } catch (Exception e) {
+            details.put("error", e.getMessage());
+        }
+        return details;
+    }
+
+    private Map<String, Object> getDiskSpaceDetails() {
+        Map<String, Object> details = new HashMap<>();
+        try {
+            File root = new File("/");
+            long totalSpace = root.getTotalSpace();
+            long freeSpace = root.getFreeSpace();
+            long usedSpace = totalSpace - freeSpace;
+
+            details.put("total", totalSpace / 1024 / 1024 / 1024 + " GB");
+            details.put("free", freeSpace / 1024 / 1024 / 1024 + " GB");
+            details.put("used", usedSpace / 1024 / 1024 / 1024 + " GB");
+            details.put("usagePercent", (double) usedSpace / totalSpace * 100 + "%");
+        } catch (Exception e) {
+            details.put("error", e.getMessage());
+        }
+        return details;
+    }
+
+    private Map<String, Object> getMemoryHealthDetails() {
+        Map<String, Object> details = new HashMap<>();
+        MemoryUsage heapUsage = memoryMXBean.getHeapMemoryUsage();
+
+        details.put("used", heapUsage.getUsed() / 1024 / 1024 + " MB");
+        details.put("max", heapUsage.getMax() / 1024 / 1024 + " MB");
+        details.put("usagePercent", (double) heapUsage.getUsed() / heapUsage.getMax() * 100 + "%");
+
+        return details;
+    }
+
+    private DatabaseStatusResponse.DatabaseMetrics getDatabaseMetrics(Connection connection) {
+        DatabaseStatusResponse.DatabaseMetrics metrics = new DatabaseStatusResponse.DatabaseMetrics();
+
+        try {
+            // 这里可以执行更复杂的数据库性能查询
+            // 目前设置一些基本值
+            metrics.setTotalQueries(0L);
+            metrics.setQueriesPerSecond(0.0);
+            metrics.setAvgQueryTime(0.0);
+            metrics.setMaxQueryTime(0L);
+            metrics.setTotalTransactions(0L);
+            metrics.setTransactionsPerSecond(0.0);
+            metrics.setCacheHitRate(0.0);
+            metrics.setIndexUsageRate(0.0);
+        } catch (Exception e) {
+            log.warn("获取数据库性能指标失败", e);
+        }
+
+        return metrics;
+    }
+}
