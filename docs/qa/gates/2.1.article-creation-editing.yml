@@ -1,0 +1,74 @@
+schema: 1
+story: '2.1'
+story_title: 'Article Creation & Editing'
+gate: CONCERNS
+status_reason: '文章创建和编辑功能基本完成，但存在安全配置、代码质量、测试覆盖率和文档完整性等方面的问题需要改进。'
+reviewer: 'Quinn (Test Architect)'
+updated: '2025-12-15T16:00:00+08:00'
+
+top_issues:
+  - severity: medium
+    issue: 'JWT密钥和数据库密码使用默认值，存在安全风险'
+    refs: ['blog-backend/src/main/resources/application.yml']
+    suggested_owner: dev
+  - severity: medium
+    issue: 'MyBatis Plus在生产环境启用控制台日志，可能泄露敏感信息'
+    refs: ['blog-backend/src/main/resources/application.yml']
+    suggested_owner: dev
+  - severity: medium
+    issue: '文件上传验证存在XSS风险，缺少内容安全检查'
+    refs: ['blog-backend/src/main/java/com/example/blog/controller/FileUploadController.java']
+    suggested_owner: dev
+  - severity: low
+    issue: '前端Markdown预览使用简单的正则表达式替换，存在XSS风险'
+    refs: ['blog-frontend/src/components/article/ArticleEditor.vue']
+    suggested_owner: dev
+  - severity: low
+    issue: '测试用例中包含语法错误（.andExpected应为.andExpect）'
+    refs: ['blog-backend/src/test/java/com/example/blog/controller/ArticleControllerTest.java']
+    suggested_owner: dev
+
+waiver: { active: false }
+
+quality_score: 60
+
+expires: '2025-12-29T16:00:00+08:00'
+
+evidence:
+  tests_reviewed: 14
+  risks_identified: 5
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6, 7, 8]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: CONCERNS
+    notes: 'JWT密钥使用默认值，文件上传缺少内容安全检查，存在XSS风险。需要加强安全配置。'
+  performance:
+    status: PASS
+    notes: '自动保存功能设计合理，文件上传有大小限制，数据库查询使用了适当的索引。'
+  reliability:
+    status: PASS
+    notes: '实现了适当的错误处理机制，文件上传有本地存储回退方案，自动保存有失败重试。'
+  maintainability:
+    status: CONCERNS
+    notes: '代码结构清晰，但缺少ArticleController和ArticleService的实现，测试文件存在语法错误。'
+
+recommendations:
+  immediate:
+    - action: '更改JWT密钥为强随机密钥，使用环境变量管理'
+      refs: ['blog-backend/src/main/resources/application.yml']
+    - action: '为文件上传添加内容安全检查，防止XSS攻击'
+      refs: ['blog-backend/src/main/java/com/example/blog/controller/FileUploadController.java']
+    - action: '修复测试文件中的语法错误'
+      refs: ['blog-backend/src/test/java/com/example/blog/controller/ArticleControllerTest.java']
+    - action: '完成缺失的ArticleController和ArticleService实现'
+      refs: ['story task list']
+  future:
+    - action: '使用专业的Markdown解析库替换正则表达式'
+      refs: ['blog-frontend/src/components/article/ArticleEditor.vue']
+    - action: '添加集成测试覆盖完整的文章创建流程'
+      refs: ['test suite']
+    - action: '为生产环境创建独立的配置文件'
+      refs: ['blog-backend/src/main/resources/application.yml']

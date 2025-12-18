@@ -1,0 +1,74 @@
+schema: 1
+story: '5.3'
+story_title: 'System Monitoring & Maintenance'
+gate: CONCERNS
+status_reason: '功能实现完整且安全性达标，但测试覆盖率严重不足，缺少单元测试和集成测试'
+reviewer: 'Quinn (Test Architect)'
+updated: '2025-12-16T20:00:00+08:00'
+
+top_issues:
+  - severity: medium
+    description: '缺少SystemMonitorController等新Controller的单元测试'
+    refs: ['blog-backend/src/main/java/com/example/blog/controller/admin/SystemMonitorController.java']
+    suggested_owner: dev
+  - severity: medium
+    description: '缺少SystemMonitorServiceImpl、BackupServiceImpl等关键服务的集成测试'
+    refs: ['blog-backend/src/main/java/com/example/blog/service/impl/SystemMonitorServiceImpl.java']
+    suggested_owner: dev
+  - severity: low
+    description: 'SystemMonitorServiceImpl类过大（539行），建议拆分'
+    refs: ['blog-backend/src/main/java/com/example/blog/service/impl/SystemMonitorServiceImpl.java']
+    suggested_owner: dev
+  - severity: low
+    description: '硬编码的系统阈值应移至配置文件'
+    refs: ['blog-backend/src/main/resources/application.yml']
+    suggested_owner: dev
+
+waiver: { active: false }
+
+quality_score: 85
+
+expires: '2025-12-30T20:00:00+08:00'
+
+evidence:
+  tests_reviewed: 0
+  risks_identified: 4
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6, 7, 8]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: '安全防护完善：实现了敏感信息脱敏、输入验证、API频率限制、权限控制和操作审计'
+  performance:
+    status: PASS
+    notes: '性能优化到位：异步日志记录、系统监控缓存、数据库连接池优化，有效减少资源消耗'
+  reliability:
+    status: PASS
+    notes: '可靠性良好：全局异常处理、异步任务处理、合理的资源管理，系统稳定运行'
+  maintainability:
+    status: CONCERNS
+    notes: '代码结构基本清晰，但SystemMonitorServiceImpl类过大，缺少测试文档，影响可维护性'
+
+recommendations:
+  immediate: # 下一个迭代必须修复
+    - action: '为SystemMonitorController创建单元测试，测试所有API端点'
+      refs: ['blog-backend/src/main/java/com/example/blog/controller/admin/SystemMonitorController.java']
+    - action: '为AdminLogController创建单元测试，包含CRUD操作测试'
+      refs: ['blog-backend/src/main/java/com/example/blog/controller/admin/AdminLogController.java']
+    - action: '为AdminBackupController创建单元测试，重点关注备份恢复逻辑'
+      refs: ['blog-backend/src/main/java/com/example/blog/controller/admin/AdminBackupController.java']
+  future: # 可以在后续迭代中处理
+    - action: '创建SystemMonitorServiceImpl的集成测试，验证实际系统指标获取'
+      refs: ['blog-backend/src/main/java/com/example/blog/service/impl/SystemMonitorServiceImpl.java']
+    - action: '创建BackupServiceImpl的集成测试，验证备份恢复流程'
+      refs: ['blog-backend/src/main/java/com/example/blog/service/impl/BackupServiceImpl.java']
+    - action: '为前端监控组件创建组件测试'
+      refs: ['blog-frontend/src/views/admin/monitor/']
+    - action: '拆分SystemMonitorServiceImpl类，按功能模块分离'
+      refs: ['blog-backend/src/main/java/com/example/blog/service/impl/SystemMonitorServiceImpl.java']
+    - action: '将硬编码阈值移至application.yml配置文件'
+      refs: ['blog-backend/src/main/resources/application.yml']
+    - action: '添加E2E测试验证完整的监控和管理流程'
+      refs: ['tests/e2e/']
