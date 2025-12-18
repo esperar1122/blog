@@ -32,7 +32,7 @@
             {{ commentCount }}
           </span>
           <span class="like-count">
-            <el-icon><Heart /></el-icon>
+            <el-icon><Star /></el-icon>
             {{ article?.likeCount }}
           </span>
         </div>
@@ -64,7 +64,7 @@
     <div class="article-actions">
       <el-button
         :type="isLiked ? 'primary' : 'default'"
-        :icon="isLiked ? 'HeartFilled' : 'Heart'"
+        :icon="isLiked ? 'StarFilled' : 'Star'"
         @click="handleLike"
       >
         {{ isLiked ? '已点赞' : '点赞' }} ({{ article?.likeCount || 0 }})
@@ -112,7 +112,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { View, ChatDotRound, Heart, HeartFilled, Edit, Delete, Share } from '@element-plus/icons-vue'
+import { View, ChatDotRound, Star, StarFilled, Edit, Delete, Share } from '@element-plus/icons-vue'
 import { marked } from 'marked'
 import { formatDateTime } from '@/utils/date'
 import { useUserStore } from '@/stores/user'

@@ -1,0 +1,247 @@
+package com.example.blog.controller;
+
+import com.example.blog.common.Result;
+import com.example.blog.dto.CategoryDTO;
+import com.example.blog.dto.CreateCategoryRequest;
+import com.example.blog.dto.UpdateCategoryRequest;
+import com.example.blog.entity.Category;
+import com.example.blog.service.CategoryService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.*;
+
+import jakarta.validation.Valid;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+/**
+ * 分类控制器
+ */
+@RestController
+@RequestMapping("/api/categories")
+@RequiredArgsConstructor
+@Validated
+public class CategoryController {
+
+    private final CategoryService categoryService;
+
+    /**
+     * 获取所有分类列表
+     */
+    @GetMapping
+    public Result<List<Category>> getAllCategories() {
+        List<Category> categories = categoryService.getAllCategories();
+        return Result.success(categories);
+    }
+
+    /**
+     * 获取分类树形结构
+     */
+    @GetMapping("/tree")
+    public Result<List<CategoryDTO>> getCategoryTree() {
+        List<Category> allCategories = categoryService.getAllCategories();
+
+        // 构建分类树
+        Map<Long, List<CategoryDTO>> categoryMap = allCategories.stream()
+                .filter(c -> c.getParentId() != null)
+                .collect(Collectors.groupingBy(
+                    Category::getParentId,
+                    Collectors.mapping(CategoryDTO::fromEntity, Collectors.toList())
+                ));
+
+        // 设置子分类并排序
+        categoryMap.values().forEach(children -> {
+            children.sort((c1, c2) -> {
+                int sortCompare = Integer.compare(
+                    c1.getSortOrder() != null ? c1.getSortOrder() : 0,
+                    c2.getSortOrder() != null ? c2.getSortOrder() : 0
+                );
+                if (sortCompare != 0) return sortCompare;
+                return Long.compare(c1.getId(), c2.getId());
+            });
+        });
+
+        // 构建树形结构
+        List<CategoryDTO> tree = allCategories.stream()
+                .filter(Category::isRootCategory)
+                .map(category -> {
+                    List<CategoryDTO> children = categoryMap.get(category.getId());
+                    return CategoryDTO.fromEntity(category, children);
+                })
+                .sorted((c1, c2) -> {
+                    int sortCompare = Integer.compare(
+                        c1.getSortOrder() != null ? c1.getSortOrder() : 0,
+                        c2.getSortOrder() != null ? c2.getSortOrder() : 0
+                    );
+                    if (sortCompare != 0) return sortCompare;
+                    return Long.compare(c1.getId(), c2.getId());
+                })
+                .collect(Collectors.toList());
+
+        return Result.success(tree);
+    }
+
+    /**
+     * 根据ID获取分类详情
+     */
+    @GetMapping("/{id}")
+    public Result<Category> getCategoryById(@PathVariable Long id) {
+        Category category = categoryService.getCategoryById(id);
+        if (category == null) {
+            return Result.error("分类不存在");
+        }
+        return Result.success(category);
+    }
+
+    /**
+     * 创建分类（需要管理员权限）
+     */
+    @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    public Result<Category> createCategory(@Valid @RequestBody CreateCategoryRequest request) {
+        Category category = new Category();
+        category.setName(request.getName());
+        category.setDescription(request.getDescription());
+        category.setIcon(request.getIcon());
+        category.setParentId(request.getParentId());
+        category.setSortOrder(request.getSortOrder());
+
+        try {
+            Category createdCategory = categoryService.createCategory(category);
+            return Result.success(createdCategory);
+        } catch (RuntimeException e) {
+            return Result.error(e.getMessage());
+        }
+    }
+
+    /**
+     * 更新分类（需要管理员权限）
+     */
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Result<Category> updateCategory(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateCategoryRequest request) {
+
+        Category category = new Category();
+        category.setName(request.getName());
+        category.setDescription(request.getDescription());
+        category.setIcon(request.getIcon());
+        category.setParentId(request.getParentId());
+        category.setSortOrder(request.getSortOrder());
+
+        try {
+            Category updatedCategory = categoryService.updateCategory(id, category);
+            return Result.success(updatedCategory);
+        } catch (RuntimeException e) {
+            return Result.error(e.getMessage());
+        }
+    }
+
+    /**
+     * 删除分类（需要管理员权限）
+     */
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Result<String> deleteCategory(@PathVariable Long id) {
+        try {
+            boolean deleted = categoryService.deleteCategory(id);
+            if (deleted) {
+                return Result.success("分类删除成功");
+            } else {
+                return Result.error("分类不存在");
+            }
+        } catch (RuntimeException e) {
+            return Result.error(e.getMessage());
+        }
+    }
+
+    /**
+     * 更新分类排序（需要管理员权限）
+     */
+    @PutMapping("/sort")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Result<String> updateCategorySort(@RequestBody List<Category> categories) {
+        try {
+            categoryService.updateCategorySort(categories);
+            return Result.success("分类排序更新成功");
+        } catch (RuntimeException e) {
+            return Result.error(e.getMessage());
+        }
+    }
+
+    /**
+     * 获取分类下的文章列表
+     */
+    @GetMapping("/{id}/articles")
+    public Result<?> getArticlesByCategory(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer size) {
+
+        Category category = categoryService.getCategoryById(id);
+        if (category == null) {
+            return Result.error("分类不存在");
+        }
+
+        // TODO: 实现获取分类下文章的逻辑
+        // 需要注入ArticleService并调用其方法来获取分页的文章列表
+        // 示例代码（待ArticleService实现后启用）:
+        /*
+        PageRequest pageRequest = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "createTime"));
+        Page<Article> articles = articleService.getArticlesByCategory(id, pageRequest);
+        return Result.success(articles);
+        */
+
+        // 临时返回空结果，待后续文章服务集成
+        Map<String, Object> result = Map.of(
+            "content", List.of(),
+            "totalElements", 0,
+            "totalPages", 0,
+            "size", size,
+            "number", page - 1,
+            "category", category
+        );
+        return Result.success(result);
+    }
+
+    /**
+     * 检查分类名称是否存在
+     */
+    @GetMapping("/check/name")
+    public Result<Boolean> checkNameExists(
+            @RequestParam String name,
+            @RequestParam(required = false) Long excludeId) {
+
+        boolean exists;
+        if (excludeId != null) {
+            exists = categoryService.existsByNameAndExcludeId(name, excludeId);
+        } else {
+            exists = categoryService.existsByName(name);
+        }
+
+        return Result.success(exists);
+    }
+
+    /**
+     * 获取根分类列表
+     */
+    @GetMapping("/root")
+    public Result<List<Category>> getRootCategories() {
+        List<Category> categories = categoryService.getRootCategories();
+        return Result.success(categories);
+    }
+
+    /**
+     * 获取子分类列表
+     */
+    @GetMapping("/children/{parentId}")
+    public Result<List<Category>> getChildCategories(@PathVariable Long parentId) {
+        List<Category> categories = categoryService.getChildCategories(parentId);
+        return Result.success(categories);
+    }
+}

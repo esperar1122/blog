@@ -1,9 +1,8 @@
 package com.example.blog.util;
 
-import org.apache.commons.text.StringEscapeUtils;
-
 /**
  * HTML工具类，用于处理HTML转义和XSS防护
+ * 使用Java标准库实现，无需外部依赖
  */
 public class HtmlUtils {
 
@@ -18,8 +17,31 @@ public class HtmlUtils {
             return null;
         }
 
-        // 使用Apache Commons Text进行HTML转义
-        return StringEscapeUtils.escapeHtml4(input);
+        // 使用Java标准库进行HTML转义
+        StringBuilder escaped = new StringBuilder();
+        for (char c : input.toCharArray()) {
+            switch (c) {
+                case '<':
+                    escaped.append("&lt;");
+                    break;
+                case '>':
+                    escaped.append("&gt;");
+                    break;
+                case '"':
+                    escaped.append("&quot;");
+                    break;
+                case '\'':
+                    escaped.append("&#39;");
+                    break;
+                case '&':
+                    escaped.append("&amp;");
+                    break;
+                default:
+                    escaped.append(c);
+                    break;
+            }
+        }
+        return escaped.toString();
     }
 
     /**
@@ -79,6 +101,33 @@ public class HtmlUtils {
         }
 
         return false;
+    }
+
+    /**
+     * 清理HTML内容，移除所有HTML标签，只保留纯文本
+     *
+     * @param html 需要清理的HTML内容
+     * @return 清理后的纯文本内容
+     */
+    public static String cleanHtml(String html) {
+        if (html == null) {
+            return null;
+        }
+
+        // 移除所有HTML标签
+        String cleaned = html.replaceAll("<[^>]*>", "");
+
+        // 处理HTML实体
+        cleaned = cleaned.replaceAll("&lt;", "<");
+        cleaned = cleaned.replaceAll("&gt;", ">");
+        cleaned = cleaned.replaceAll("&quot;", "\"");
+        cleaned = cleaned.replaceAll("&#39;", "'");
+        cleaned = cleaned.replaceAll("&amp;", "&");
+
+        // 标准化空白字符
+        cleaned = cleaned.replaceAll("\\s+", " ").trim();
+
+        return cleaned;
     }
 
     /**

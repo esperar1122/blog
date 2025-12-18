@@ -14,7 +14,7 @@ import type {
 
 // 获取文章列表
 export function getArticles(params: ArticleQueryParams): Promise<ArticleListResponse> {
-  return get<ArticleListResponse>('/api/v1/articles', params)
+  return get<ArticleListResponse>('/articles', params)
 }
 
 // 兼容性API - 获取文章列表 (使用旧接口)
@@ -29,17 +29,17 @@ export function getArticlesCompat(params: PaginationParams & {
 
 // 获取文章详情
 export function getArticle(id: number): Promise<ArticleDetailResponse> {
-  return get<ArticleDetailResponse>(`/api/v1/articles/${id}`)
+  return get<ArticleDetailResponse>(`/articles/${id}`)
 }
 
 // 搜索文章
 export function searchArticles(params: ArticleQueryParams): Promise<ArticleListResponse> {
-  return get<ArticleListResponse>('/api/v1/articles/search', params)
+  return get<ArticleListResponse>('/articles/search', params)
 }
 
 // 获取我的文章
 export function getMyArticles(params: ArticleQueryParams): Promise<ArticleListResponse> {
-  return get<ArticleListResponse>('/api/v1/articles/my-articles', params)
+  return get<ArticleListResponse>('/articles/my-articles', params)
 }
 
 // 获取最新文章
@@ -82,14 +82,9 @@ export function deleteArticle(id: number): Promise<void> {
   return del(`/articles/${id}`)
 }
 
-// 发布文章
-export function publishArticle(id: number): Promise<void> {
-  return post(`/articles/${id}/publish`)
-}
-
-// 取消发布文章
-export function unpublishArticle(id: number): Promise<void> {
-  return post(`/articles/${id}/unpublish`)
+// 分页获取已发布文章（兼容视图调用）
+export function getPublishedArticlesWithPagination(params: ArticleQueryParams): Promise<ArticleListResponse> {
+  return get<ArticleListResponse>('/articles', params)
 }
 
 // 点赞文章
@@ -123,62 +118,76 @@ export function getArticleStats(): Promise<{
 
 // 文章生命周期管理API
 
+
 // 发布文章
 export function publishArticle(id: number): Promise<ArticleStatusManagementResponse> {
-  return post<ArticleStatusManagementResponse>(`/api/v1/articles/${id}/publish`)
+  return post<ArticleStatusManagementResponse>(`/articles/${id}/publish`)
 }
 
 // 下线文章
 export function unpublishArticle(id: number): Promise<ArticleStatusManagementResponse> {
-  return post<ArticleStatusManagementResponse>(`/api/v1/articles/${id}/unpublish`)
+  return post<ArticleStatusManagementResponse>(`/articles/${id}/unpublish`)
+}
+
+// 别名函数，用于兼容 MyArticles.vue 中的导入
+export function publishArticleApi(id: number): Promise<ArticleStatusManagementResponse> {
+  return publishArticle(id)
+}
+
+export function unpublishArticleApi(id: number): Promise<ArticleStatusManagementResponse> {
+  return unpublishArticle(id)
+}
+
+export function setArticleTopApi(id: number, isTop: boolean): Promise<void> {
+  return setArticleTop(id, isTop)
 }
 
 // 置顶文章
 export function pinArticle(id: number): Promise<ArticleStatusManagementResponse> {
-  return post<ArticleStatusManagementResponse>(`/api/v1/articles/${id}/pin`)
+  return post<ArticleStatusManagementResponse>(`/articles/${id}/pin`)
 }
 
 // 取消置顶文章
 export function unpinArticle(id: number): Promise<ArticleStatusManagementResponse> {
-  return post<ArticleStatusManagementResponse>(`/api/v1/articles/${id}/unpin`)
+  return post<ArticleStatusManagementResponse>(`/articles/${id}/unpin`)
 }
 
 // 定时发布文章
 export function schedulePublishArticle(id: number, data: SchedulePublishRequest): Promise<ArticleStatusManagementResponse> {
-  return post<ArticleStatusManagementResponse>(`/api/v1/articles/${id}/schedule-publish`, data)
+  return post<ArticleStatusManagementResponse>(`/articles/${id}/schedule-publish`, data)
 }
 
 // 软删除文章
 export function softDeleteArticle(id: number): Promise<ArticleStatusManagementResponse> {
-  return del<ArticleStatusManagementResponse>(`/api/v1/articles/${id}/soft-delete`)
+  return del<ArticleStatusManagementResponse>(`/articles/${id}/soft-delete`)
 }
 
 // 恢复文章
 export function restoreArticle(id: number): Promise<ArticleStatusManagementResponse> {
-  return post<ArticleStatusManagementResponse>(`/api/v1/articles/${id}/restore`)
+  return post<ArticleStatusManagementResponse>(`/articles/${id}/restore`)
 }
 
 // 获取文章版本历史
 export function getArticleVersions(id: number): Promise<ArticleVersion[]> {
-  return get<ArticleVersion[]>(`/api/v1/articles/${id}/versions`)
+  return get<ArticleVersion[]>(`/articles/${id}/versions`)
 }
 
 // 获取文章操作日志
 export function getArticleOperationLogs(id: number): Promise<ArticleOperationLog[]> {
-  return get<ArticleOperationLog[]>(`/api/v1/articles/${id}/operation-logs`)
+  return get<ArticleOperationLog[]>(`/articles/${id}/operation-logs`)
 }
 
 // 获取已删除的文章
 export function getDeletedArticles(): Promise<Article[]> {
-  return get<Article[]>('/api/v1/articles/deleted')
+  return get<Article[]>('/articles/deleted')
 }
 
 // 获取定时发布的文章
 export function getScheduledArticles(): Promise<Article[]> {
-  return get<Article[]>('/api/v1/articles/scheduled')
+  return get<Article[]>('/articles/scheduled')
 }
 
 // 获取置顶的文章
 export function getPinnedArticles(): Promise<Article[]> {
-  return get<Article[]>('/api/v1/articles/pinned')
+  return get<Article[]>('/articles/pinned')
 }

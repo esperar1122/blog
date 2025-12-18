@@ -1,14 +1,20 @@
 package com.example.blog.service;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.example.blog.dto.LoginRequest;
+import com.example.blog.dto.RegisterRequest;
 import com.example.blog.entity.User;
 import com.example.blog.enums.UserRole;
 
 import java.util.List;
-import java.util.Map;
 
+/**
+ * 简化的用户服务接口
+ * 专注于大学生个人博客的核心用户功能
+ */
 public interface UserService {
+
+    // === 核心用户功能 ===
 
     User getUserById(Long id);
 
@@ -16,56 +22,55 @@ public interface UserService {
 
     User getUserByEmail(String email);
 
-    User register(String username, String email, String password, String nickname);
+    User register(RegisterRequest request);
 
-    User login(String username, String password);
+    User login(LoginRequest request);
 
     User loginByUsernameOrEmail(String loginIdentifier, String password);
 
-    User updateUser(Long id, User user);
+    boolean updateUserProfile(Long userId, User updateUser);
 
-    User updateUserProfile(Long id, String nickname, String bio, String avatar);
-
-    boolean changePassword(Long id, String oldPassword, String newPassword);
+    boolean changePassword(Long userId, String oldPassword, String newPassword);
 
     boolean existsByUsername(String username);
 
     boolean existsByEmail(String email);
 
-    IPage<User> getUsersWithPagination(Page<User> page, String role);
-
-    List<User> getActiveUsers();
-
-    boolean banUser(Long id);
-
-    boolean unbanUser(Long id);
-
-    boolean deleteUser(Long id);
-
-    User assignAdminRole(Long id);
-
-    User removeAdminRole(Long id);
-
-    boolean resetPassword(Long id, String newPassword);
-
     void updateLastLoginTime(Long id);
 
-    // 权限管理相关方法
+    // === 基础管理功能 ===
 
     /**
-     * 获取所有用户（管理员）
+     * 获取用户列表（分页，管理员功能）
      */
-    Page<User> getAllUsers(Page<User> page, String keyword, UserRole role);
+    IPage<User> getUserList(int page, int size, String keyword);
 
     /**
-     * 更新用户角色（管理员）
+     * 获取活跃用户列表
      */
-    void updateUserRole(Long userId, UserRole role);
+    List<User> getActiveUsers();
 
     /**
-     * 更新用户状态（管理员）
+     * 删除用户（软删除，管理员功能）
      */
-    void updateUserStatus(Long userId, boolean enabled);
+    boolean deleteUser(Long userId);
+
+    /**
+     * 分配管理员角色
+     */
+    User assignAdminRole(Long id);
+
+    /**
+     * 移除管理员角色
+     */
+    User removeAdminRole(Long id);
+
+    /**
+     * 重置用户密码（管理员功能）
+     */
+    boolean resetPassword(Long id, String newPassword);
+
+    // === 统计信息 ===
 
     /**
      * 获取总用户数
@@ -81,14 +86,4 @@ public interface UserService {
      * 根据角色获取用户数
      */
     int getUserCountByRole(UserRole role);
-
-    /**
-     * 批量更新用户角色（管理员）
-     */
-    void batchUpdateUserRole(List<Long> userIds, UserRole role);
-
-    /**
-     * 获取系统统计信息（管理员）
-     */
-    Map<String, Object> getSystemStats();
 }

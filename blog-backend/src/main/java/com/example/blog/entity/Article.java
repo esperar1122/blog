@@ -30,13 +30,13 @@ public class Article {
     private String status;
 
     @TableField("view_count")
-    private Integer viewCount;
+    private Long viewCount;
 
     @TableField("like_count")
-    private Integer likeCount;
+    private Long likeCount;
 
     @TableField("comment_count")
-    private Integer commentCount;
+    private Long commentCount;
 
     @TableField("is_top")
     private Boolean isTop;
@@ -61,6 +61,26 @@ public class Article {
 
     @TableField("scheduled_publish_time")
     private LocalDateTime scheduledPublishTime;
+
+    @TableField("deleted")
+    private Integer deleted;
+
+    // 兼容性方法
+    public LocalDateTime getCreatedAt() {
+        return createTime;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createTime = createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updateTime;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updateTime = updatedAt;
+    }
 
     @TableField(exist = false)
     private String authorName;
@@ -91,11 +111,12 @@ public class Article {
     }
 
     public Article() {
-        this.viewCount = 0;
-        this.likeCount = 0;
-        this.commentCount = 0;
+        this.viewCount = 0L;
+        this.likeCount = 0L;
+        this.commentCount = 0L;
         this.isTop = false;
         this.status = Status.DRAFT.getValue();
+        this.deleted = 0;
     }
 
     public boolean isPublished() {
@@ -115,22 +136,22 @@ public class Article {
     }
 
     public void incrementViewCount() {
-        this.viewCount = (this.viewCount == null ? 0 : this.viewCount) + 1;
+        this.viewCount = (this.viewCount == null ? 0L : this.viewCount) + 1L;
     }
 
     public void incrementLikeCount() {
-        this.likeCount = (this.likeCount == null ? 0 : this.likeCount) + 1;
+        this.likeCount = (this.likeCount == null ? 0L : this.likeCount) + 1L;
     }
 
     public void decrementLikeCount() {
-        this.likeCount = Math.max(0, (this.likeCount == null ? 0 : this.likeCount) - 1);
+        this.likeCount = Math.max(0L, (this.likeCount == null ? 0L : this.likeCount) - 1L);
     }
 
     public void incrementCommentCount() {
-        this.commentCount = (this.commentCount == null ? 0 : this.commentCount) + 1;
+        this.commentCount = (this.commentCount == null ? 0L : this.commentCount) + 1L;
     }
 
     public void decrementCommentCount() {
-        this.commentCount = Math.max(0, (this.commentCount == null ? 0 : this.commentCount) - 1);
+        this.commentCount = Math.max(0L, (this.commentCount == null ? 0L : this.commentCount) - 1L);
     }
 }

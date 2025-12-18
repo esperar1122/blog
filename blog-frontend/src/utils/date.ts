@@ -97,6 +97,13 @@ export function getDateRange(type: 'today' | 'week' | 'month' | 'year'): [Date, 
 }
 
 /**
+ * 格式化日期时间（别名）
+ */
+export function formatDateTime(date: string | Date): string {
+  return formatDate(date, 'YYYY-MM-DD HH:mm');
+}
+
+/**
  * 判断是否为同一天
  */
 export function isSameDay(date1: string | Date, date2: string | Date): boolean {

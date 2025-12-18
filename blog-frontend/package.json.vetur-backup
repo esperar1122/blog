@@ -1,0 +1,7 @@
+{
+  "vetur": {
+    "project": {
+      "fileName": "vetur.config.js"
+    }
+  }
+}

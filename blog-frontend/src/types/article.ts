@@ -104,6 +104,7 @@ export interface Category {
   description: string
   articleCount: number
   createTime: string
+  icon?: string  // 可选的分类图标
 }
 
 export interface Tag {

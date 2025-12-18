@@ -1,0 +1,19 @@
+package com.example.blog.dto.request;
+
+import lombok.Data;
+import jakarta.validation.constraints.NotBlank;
+
+@Data
+public class SystemSettingsRequest {
+
+    @NotBlank(message = "设置键不能为空")
+    private String settingKey;
+
+    private String settingValue;
+
+    private String description;
+
+    private String type;
+
+    private Boolean isPublic;
+}

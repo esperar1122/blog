@@ -4,23 +4,20 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.example.blog.dto.LoginRequest;
+import com.example.blog.dto.RegisterRequest;
 import com.example.blog.entity.User;
 import com.example.blog.enums.UserRole;
 import com.example.blog.exception.BusinessException;
 import com.example.blog.mapper.UserMapper;
 import com.example.blog.service.UserService;
-import com.example.blog.service.ArticleService;
-import com.example.blog.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @Service
@@ -28,9 +25,6 @@ import java.util.Map;
 public class UserServiceImpl implements UserService {
 
     private final UserMapper userMapper;
-    private final PasswordEncoder passwordEncoder;
-    private final JwtUtil jwtUtil;
-    private final ArticleService articleService;
 
     @Override
     public User getUserById(Long id) {
@@ -52,129 +46,28 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    @Transactional
-    public User register(String username, String email, String password, String nickname) {
-        if (existsByUsername(username)) {
-            throw new BusinessException("用户名已存在");
-        }
-        if (existsByEmail(email)) {
-            throw new BusinessException("邮箱已被注册");
-        }
-
-        User user = new User();
-        user.setUsername(username);
-        user.setEmail(email);
-        user.setPassword(passwordEncoder.encode(password));
-        user.setNickname(nickname);
-        user.setRole(UserRole.USER.getCode());
-        user.setStatus(User.Status.ACTIVE.getValue());
-
-        userMapper.insert(user);
-        return user;
-    }
-
-    @Override
-    public User login(String username, String password) {
-        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("username", username)
-                   .or()
-                   .eq("email", username);
-
-        User user = userMapper.selectOne(queryWrapper);
-        if (user == null) {
-            throw new BusinessException("用户不存在");
-        }
-
-        if (!"ACTIVE".equals(user.getStatus())) {
-            throw new BusinessException("账号已被禁用");
-        }
-
-        if (!passwordEncoder.matches(password, user.getPassword())) {
-            throw new BusinessException("密码错误");
-        }
-
-        updateLastLoginTime(user.getId());
-        return user;
-    }
-
-    @Override
-    @Transactional
     public User loginByUsernameOrEmail(String loginIdentifier, String password) {
-        if (loginIdentifier == null || loginIdentifier.trim().isEmpty()) {
-            throw new BusinessException("登录标识不能为空");
-        }
-
-        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("username", loginIdentifier)
-                   .or()
-                   .eq("email", loginIdentifier);
-
-        User user = userMapper.selectOne(queryWrapper);
+        // 尝试通过用户名查找
+        User user = getUserByUsername(loginIdentifier);
         if (user == null) {
-            throw new BusinessException("用户不存在");
+            // 如果用户名不存在，尝试通过邮箱查找
+            user = getUserByEmail(loginIdentifier);
         }
 
-        if (!"ACTIVE".equals(user.getStatus())) {
-            throw new BusinessException("账号已被禁用");
+        if (user == null) {
+            throw new BusinessException("用户名或邮箱不存在");
         }
 
-        if (!passwordEncoder.matches(password, user.getPassword())) {
+        // 简化版本：直接比较密码
+        if (!password.equals(user.getPassword())) {
             throw new BusinessException("密码错误");
         }
 
-        updateLastLoginTime(user.getId());
+        log.info("用户登录成功 - identifier: {}", loginIdentifier);
+
+        // 返回用户信息（不包含密码）
+        user.setPassword(null);
         return user;
-    }
-
-    @Override
-    @Transactional
-    public User updateUser(Long id, User user) {
-        User existingUser = getUserById(id);
-
-        if (user.getNickname() != null) {
-            existingUser.setNickname(user.getNickname());
-        }
-        if (user.getBio() != null) {
-            existingUser.setBio(user.getBio());
-        }
-        if (user.getAvatar() != null) {
-            existingUser.setAvatar(user.getAvatar());
-        }
-
-        userMapper.updateById(existingUser);
-        return existingUser;
-    }
-
-    @Override
-    @Transactional
-    public User updateUserProfile(Long id, String nickname, String bio, String avatar) {
-        User user = getUserById(id);
-
-        if (nickname != null) {
-            user.setNickname(nickname);
-        }
-        if (bio != null) {
-            user.setBio(bio);
-        }
-        if (avatar != null) {
-            user.setAvatar(avatar);
-        }
-
-        userMapper.updateById(user);
-        return user;
-    }
-
-    @Override
-    @Transactional
-    public boolean changePassword(Long id, String oldPassword, String newPassword) {
-        User user = getUserById(id);
-
-        if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
-            throw new BusinessException("原密码错误");
-        }
-
-        user.setPassword(passwordEncoder.encode(newPassword));
-        return userMapper.updateById(user) > 0;
     }
 
     @Override
@@ -188,84 +81,107 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public IPage<User> getUsersWithPagination(Page<User> page, String role) {
-        return userMapper.selectUsersWithRole(page, role);
-    }
-
-    @Override
-    public List<User> getActiveUsers() {
-        return userMapper.selectActiveUsers();
-    }
-
-    @Override
-    @Transactional
-    public boolean banUser(Long id) {
-        User user = getUserById(id);
-        if ("ADMIN".equals(user.getRole())) {
-            throw new BusinessException("不能禁用管理员账户");
+    public User register(RegisterRequest request) {
+        // 检查用户名是否已存在
+        if (getUserByUsername(request.getUsername()) != null) {
+            throw new BusinessException("用户名已存在");
         }
 
-        UpdateWrapper<User> updateWrapper = new UpdateWrapper<>();
-        updateWrapper.eq("id", id)
-                    .set("status", "BANNED");
-        return userMapper.update(null, updateWrapper) > 0;
-    }
-
-    @Override
-    @Transactional
-    public boolean unbanUser(Long id) {
-        UpdateWrapper<User> updateWrapper = new UpdateWrapper<>();
-        updateWrapper.eq("id", id)
-                    .set("status", "ACTIVE");
-        return userMapper.update(null, updateWrapper) > 0;
-    }
-
-    @Override
-    @Transactional
-    public boolean deleteUser(Long id) {
-        User user = getUserById(id);
-        if ("ADMIN".equals(user.getRole())) {
-            throw new BusinessException("不能删除管理员账户");
+        // 检查邮箱是否已存在
+        if (getUserByEmail(request.getEmail()) != null) {
+            throw new BusinessException("邮箱已被使用");
         }
-        return userMapper.deleteById(id) > 0;
-    }
 
-    @Override
-    @Transactional
-    public User assignAdminRole(Long id) {
-        User user = getUserById(id);
-        user.setRole(UserRole.ADMIN.getCode());
-        userMapper.updateById(user);
+        // 创建新用户
+        User user = new User();
+        user.setUsername(request.getUsername());
+        user.setEmail(request.getEmail());
+        user.setPassword(request.getPassword()); // 不加密，简化版本
+        user.setNickname(request.getNickname() != null ? request.getNickname() : request.getUsername());
+        user.setRole(UserRole.USER.toString());
+        user.setCreateTime(LocalDateTime.now());
+        user.setUpdateTime(LocalDateTime.now());
+
+        userMapper.insert(user);
+        log.info("用户注册成功 - username: {}", user.getUsername());
+
+        // 返回用户信息（不包含密码）
+        user.setPassword(null);
         return user;
     }
 
     @Override
-    @Transactional
-    public User removeAdminRole(Long id) {
-        User user = getUserById(id);
-        user.setRole(UserRole.USER.getCode());
-        userMapper.updateById(user);
+    public User login(LoginRequest request) {
+        User user = getUserByUsername(request.getUsername());
+        if (user == null) {
+            throw new BusinessException("用户名或密码错误");
+        }
+
+        // 简化版本：直接比较密码（不加密）
+        if (!request.getPassword().equals(user.getPassword())) {
+            throw new BusinessException("用户名或密码错误");
+        }
+
+        log.info("用户登录成功 - username: {}", user.getUsername());
+
+        // 返回用户信息（不包含密码）
+        user.setPassword(null);
         return user;
     }
 
     @Override
-    @Transactional
-    public boolean resetPassword(Long id, String newPassword) {
-        User user = getUserById(id);
-        user.setPassword(passwordEncoder.encode(newPassword));
-        return userMapper.updateById(user) > 0;
+    public boolean updateUserProfile(Long userId, User updateUser) {
+        User existingUser = getUserById(userId);
+
+        if (updateUser.getUsername() != null && !updateUser.getUsername().equals(existingUser.getUsername())) {
+            // 检查新用户名是否已存在
+            if (getUserByUsername(updateUser.getUsername()) != null) {
+                throw new BusinessException("用户名已存在");
+            }
+            existingUser.setUsername(updateUser.getUsername());
+        }
+
+        if (updateUser.getEmail() != null && !updateUser.getEmail().equals(existingUser.getEmail())) {
+            // 检查新邮箱是否已存在
+            if (getUserByEmail(updateUser.getEmail()) != null) {
+                throw new BusinessException("邮箱已被使用");
+            }
+            existingUser.setEmail(updateUser.getEmail());
+        }
+
+        if (updateUser.getNickname() != null) {
+            existingUser.setNickname(updateUser.getNickname());
+        }
+
+        if (updateUser.getAvatar() != null) {
+            existingUser.setAvatar(updateUser.getAvatar());
+        }
+
+        existingUser.setUpdatedAt(LocalDateTime.now());
+
+        int result = userMapper.updateById(existingUser);
+        return result > 0;
     }
 
     @Override
-    @Transactional
-    public void updateLastLoginTime(Long id) {
-        userMapper.updateLastLoginTime(id);
+    public boolean changePassword(Long userId, String oldPassword, String newPassword) {
+        User user = getUserById(userId);
+
+        // 简化版本：直接比较密码
+        if (!oldPassword.equals(user.getPassword())) {
+            throw new BusinessException("原密码错误");
+        }
+
+        user.setPassword(newPassword);
+        user.setUpdateTime(LocalDateTime.now());
+
+        int result = userMapper.updateById(user);
+        return result > 0;
     }
 
-    // 权限管理相关方法实现
-
     @Override
-    public Page<User> getAllUsers(Page<User> page, String keyword, UserRole role) {
+    public IPage<User> getUserList(int page, int size, String keyword) {
+        Page<User> pageParam = new Page<>(page, size);
         QueryWrapper<User> queryWrapper = new QueryWrapper<>();
 
         if (keyword != null && !keyword.trim().isEmpty()) {
@@ -278,88 +194,106 @@ public class UserServiceImpl implements UserService {
             );
         }
 
-        if (role != null) {
-            queryWrapper.eq("role", role.getCode());
-        }
-
         queryWrapper.orderByDesc("create_time");
 
-        return userMapper.selectPage(page, queryWrapper);
+        return userMapper.selectPage(pageParam, queryWrapper);
     }
 
     @Override
+    public List<User> getActiveUsers() {
+        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("deleted", 0).eq("status", "ACTIVE");
+        return userMapper.selectList(queryWrapper);
+    }
+
+  
+    @Override
     @Transactional
-    public void updateUserRole(Long userId, UserRole role) {
+    public boolean deleteUser(Long userId) {
         User user = getUserById(userId);
-        user.setRole(role.getCode());
+        if (user == null) {
+            log.warn("用户不存在 - userId: {}", userId);
+            return false;
+        }
+
+        // 软删除：设置为已删除状态
+        UpdateWrapper<User> updateWrapper = new UpdateWrapper<>();
+        updateWrapper.eq("id", userId)
+                    .set("deleted", 1)
+                    .set("update_time", LocalDateTime.now());
+
+        int result = userMapper.update(null, updateWrapper);
+
+        if (result > 0) {
+            log.info("用户删除成功 - userId: {}, username: {}", userId, user.getUsername());
+        }
+
+        return result > 0;
+    }
+
+    
+    @Override
+    public User assignAdminRole(Long id) {
+        User user = getUserById(id);
+        user.setRole(UserRole.ADMIN.toString());
+        user.setUpdateTime(LocalDateTime.now());
         userMapper.updateById(user);
 
-        log.info("用户 {} 角色已更新为: {}", userId, role.getDescription());
+        log.info("分配管理员权限成功 - userId: {}", id);
+        return user;
     }
 
     @Override
-    @Transactional
-    public void updateUserStatus(Long userId, boolean enabled) {
-        User user = getUserById(userId);
-        user.setStatus(enabled ? "ACTIVE" : "DISABLED");
+    public User removeAdminRole(Long id) {
+        User user = getUserById(id);
+        user.setRole(UserRole.USER.toString());
+        user.setUpdateTime(LocalDateTime.now());
         userMapper.updateById(user);
 
-        log.info("用户 {} 状态已更新为: {}", userId, enabled ? "启用" : "禁用");
+        log.info("移除管理员权限成功 - userId: {}", id);
+        return user;
     }
+
+    @Override
+    public boolean resetPassword(Long id, String newPassword) {
+        User user = getUserById(id);
+        user.setPassword(newPassword);
+        user.setUpdateTime(LocalDateTime.now());
+
+        int result = userMapper.updateById(user);
+        if (result > 0) {
+            log.info("密码重置成功 - userId: {}", id);
+        }
+        return result > 0;
+    }
+
+    @Override
+    public void updateLastLoginTime(Long id) {
+        User user = getUserById(id);
+        user.setLastLoginTime(LocalDateTime.now());
+        userMapper.updateById(user);
+    }
+
+    // === 统计信息方法 ===
 
     @Override
     public int getTotalUserCount() {
-        return userMapper.selectCount(null);
+        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("deleted", 0);
+        return Math.toIntExact(userMapper.selectCount(queryWrapper));
     }
 
     @Override
     public int getActiveUserCount() {
         QueryWrapper<User> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("status", "ACTIVE");
-        return userMapper.selectCount(queryWrapper);
+        queryWrapper.eq("deleted", 0).eq("status", "ACTIVE");
+        return Math.toIntExact(userMapper.selectCount(queryWrapper));
     }
 
     @Override
     public int getUserCountByRole(UserRole role) {
         QueryWrapper<User> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("role", role.getCode());
-        return userMapper.selectCount(queryWrapper);
-    }
-
-    @Override
-    @Transactional
-    public void batchUpdateUserRole(List<Long> userIds, UserRole role) {
-        if (userIds == null || userIds.isEmpty()) {
-            return;
-        }
-
-        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
-        queryWrapper.in("id", userIds);
-
-        User updateUser = new User();
-        updateUser.setRole(role.getCode());
-
-        userMapper.update(updateUser, queryWrapper);
-
-        log.info("批量更新 {} 个用户角色为: {}", userIds.size(), role.getDescription());
-    }
-
-    @Override
-    public Map<String, Object> getSystemStats() {
-        Map<String, Object> stats = new HashMap<>();
-
-        // 用户统计
-        stats.put("totalUsers", getTotalUserCount());
-        stats.put("activeUsers", getActiveUserCount());
-        stats.put("adminUsers", getUserCountByRole(UserRole.ADMIN));
-        stats.put("regularUsers", getUserCountByRole(UserRole.USER));
-
-        // 文章统计
-        stats.put("totalArticles", articleService.getTotalArticleCount());
-        stats.put("publishedArticles", articleService.getPublishedArticleCount());
-
-        // 其他统计可以继续添加...
-
-        return stats;
+        queryWrapper.eq("deleted", 0).eq("role", role.toString());
+        return Math.toIntExact(userMapper.selectCount(queryWrapper));
     }
 }

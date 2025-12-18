@@ -11,14 +11,23 @@ import java.time.LocalDateTime;
 @TableName("t_article_tag")
 public class ArticleTag {
 
-    @TableId(type = IdType.NONE)
+      @TableField("article_id")
     private Long articleId;
 
-    @TableId(type = IdType.NONE)
+    @TableField("tag_id")
     private Long tagId;
 
     @TableField(value = "create_time", fill = FieldFill.INSERT)
     private LocalDateTime createTime;
+
+    // 兼容性方法
+    public LocalDateTime getCreatedAt() {
+        return createTime;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createTime = createdAt;
+    }
 
     public ArticleTag() {}
 

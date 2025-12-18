@@ -27,6 +27,21 @@ spring:
     date-format: yyyy-MM-dd HH:mm:ss
     time-zone: GMT+8
 
+  # Redis配置
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password:
+      database: 0
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-wait: -1ms
+          max-idle: 8
+          min-idle: 0
+
 # MyBatis Plus配置
 mybatis-plus:
   configuration:
@@ -40,12 +55,14 @@ mybatis-plus:
       logic-not-delete-value: 0
   mapper-locations: classpath:mapper/*.xml
 
-# 简化的配置
+# JWT配置
 jwt:
-  secret: mySecretKey123456789012345678901234567890
+  secret: mySecretKey12345678901234567890123456789012345678901234567890
   access-token-expiration: 900000 # 15分钟 (毫秒)
   refresh-token-expiration: 604800000 # 7天 (毫秒)
   issuer: blog-system
+  header: Authorization
+  prefix: Bearer
 
 # 文件上传配置
 file:

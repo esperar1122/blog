@@ -1,7 +1,5 @@
 package com.example.blog.security;
 
-import com.example.blog.enums.UserRole;
-
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -18,7 +16,7 @@ public @interface RequireRole {
     /**
      * 需要的角色
      */
-    UserRole value();
+    String value() default "USER";
 
     /**
      * 权限验证失败时的错误信息

@@ -1,0 +1,95 @@
+package com.example.blog.service;
+
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.example.blog.dto.request.LogQueryRequest;
+import com.example.blog.dto.response.LogStatsResponse;
+import com.example.blog.entity.OperationLog;
+
+import jakarta.servlet.http.HttpServletResponse;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * 管理员日志服务接口
+ */
+public interface AdminLogService {
+
+    /**
+     * 记录管理员操作日志
+     * @param adminId 管理员ID
+     * @param action 操作动作
+     * @param description 操作描述
+     */
+    void log(Long adminId, String action, String description);
+
+    /**
+     * 分页查询操作日志
+     * @param request 查询条件
+     * @return 分页结果
+     */
+    IPage<OperationLog> getLogPage(LogQueryRequest request);
+
+    /**
+     * 根据ID获取日志详情
+     * @param id 日志ID
+     * @return 日志详情
+     */
+    OperationLog getLogById(Long id);
+
+    /**
+     * 删除单条日志
+     * @param id 日志ID
+     */
+    void deleteLog(Long id);
+
+    /**
+     * 批量删除日志
+     * @param ids 日志ID列表
+     */
+    void deleteLogs(List<Long> ids);
+
+    /**
+     * 按时间范围删除日志
+     * @param startTime 开始时间
+     * @param endTime 结束时间
+     */
+    void deleteLogsByTimeRange(LocalDateTime startTime, LocalDateTime endTime);
+
+    /**
+     * 获取日志统计信息
+     * @return 统计信息
+     */
+    LogStatsResponse getLogStats();
+
+    /**
+     * 获取操作类型统计
+     * @return 操作类型统计
+     */
+    List<Map<String, Object>> getOperationStats();
+
+    /**
+     * 获取用户操作统计
+     * @return 用户操作统计
+     */
+    List<Map<String, Object>> getUserStats();
+
+    /**
+     * 获取操作趋势数据
+     * @param days 天数
+     * @return 趋势数据
+     */
+    List<Map<String, Object>> getOperationTrend(int days);
+
+    /**
+     * 导出日志
+     * @param request 查询条件
+     * @param response HTTP响应
+     */
+    void exportLogs(LogQueryRequest request, HttpServletResponse response);
+
+    /**
+     * 清空所有日志
+     */
+    void clearAllLogs();
+}

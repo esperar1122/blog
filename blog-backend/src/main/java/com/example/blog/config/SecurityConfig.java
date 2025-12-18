@@ -1,57 +1,66 @@
 package com.example.blog.config;
 
-import org.springframework.context.annotation.Bean;
+import com.example.blog.security.JwtTokenProvider;
+import com.example.blog.security.PermissionInterceptor;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-
-import java.util.List;
+import org.springframework.lang.NonNull;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
  * 简化的安全配置
+ * 配置JWT认证和权限拦截器
  */
+@Slf4j
 @Configuration
-@EnableWebSecurity
-public class SecurityConfig {
+@RequiredArgsConstructor
+public class SecurityConfig implements WebMvcConfigurer {
 
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+    private final JwtTokenProvider jwtTokenProvider;
+
+    @Override
+    public void addInterceptors(@NonNull InterceptorRegistry registry) {
+        registry.addInterceptor(new PermissionInterceptor())
+                .addPathPatterns("/**")
+                .excludePathPatterns("/api/auth/**") // 排除登录相关接口
+                .excludePathPatterns("/api/public/**") // 排除公共接口
+                .excludePathPatterns("/error", "/favicon.ico"); // 排除系统路径
     }
 
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(List.of("*"));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("*"));
-        configuration.setAllowCredentials(true);
-
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
+    /**
+     * 生成JWT令牌
+     */
+    public String generateToken(String username, Long userId, String role) {
+        return jwtTokenProvider.generateToken(username, userId, role);
     }
 
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .csrf(csrf -> csrf.disable())
-            .sessionManagement(session ->
-                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+    /**
+     * 验证JWT令牌
+     */
+    public boolean validateToken(String token) {
+        return jwtTokenProvider.validateToken(token);
+    }
 
-            // 简化授权：允许所有请求（开发阶段使用）
-            .authorizeHttpRequests(auth -> auth
-                .anyRequest().permitAll()
-            );
+    /**
+     * 从令牌中提取用户名
+     */
+    public String extractUsername(String token) {
+        return jwtTokenProvider.extractUsername(token);
+    }
 
-        return http.build();
+    /**
+     * 从令牌中提取用户ID
+     */
+    public Long extractUserId(String token) {
+        return jwtTokenProvider.extractUserId(token);
+    }
+
+    /**
+     * 从令牌中提取用户角色
+     */
+    public String extractRole(String token) {
+        return jwtTokenProvider.extractRole(token);
     }
 }

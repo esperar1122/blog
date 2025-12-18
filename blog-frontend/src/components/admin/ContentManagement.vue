@@ -59,7 +59,7 @@
 
       <div class="table-toolbar" v-if="selectedRows.length > 0">
         <el-alert
-          title="已选择 " + selectedRows.length + " 条记录"
+          :title="'已选择 ' + selectedRows.length + ' 条记录'"
           type="info"
           show-icon
           :closable="false"

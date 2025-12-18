@@ -23,6 +23,15 @@ public class ArticleLike {
     @TableField(value = "create_time", fill = FieldFill.INSERT)
     private LocalDateTime createTime;
 
+    // 兼容性方法
+    public LocalDateTime getCreatedAt() {
+        return createTime;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createTime = createdAt;
+    }
+
     @TableField(exist = false)
     private String articleTitle;
 

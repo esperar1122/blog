@@ -13,7 +13,7 @@ const router = createRouter({
     {
       path: '/articles',
       name: 'articles',
-      component: () => import('@/views/ArticlesView.vue'),
+      component: () => import('@/views/HomeView.vue'),
       meta: { title: '文章列表' }
     },
     {
@@ -25,7 +25,7 @@ const router = createRouter({
     {
       path: '/categories',
       name: 'categories',
-      component: () => import('@/views/CategoriesView.vue'),
+      component: () => import('@/views/HomeView.vue'),
       meta: { title: '分类' }
     },
     {
@@ -55,7 +55,7 @@ const router = createRouter({
     {
       path: '/login',
       name: 'login',
-      component: () => import('@/views/LoginView.vue'),
+      component: () => import('@/views/Login.vue'),
       meta: { title: '登录' }
     },
     {
@@ -67,7 +67,7 @@ const router = createRouter({
     {
       path: '/profile',
       name: 'profile',
-      component: () => import('@/views/ProfileView.vue'),
+      component: () => import('@/views/MyArticles.vue'),
       meta: { title: '个人中心', requiresAuth: true }
     },
     {
@@ -79,7 +79,7 @@ const router = createRouter({
     {
       path: '/admin/dashboard',
       name: 'admin-dashboard',
-      component: () => import('@/views/admin/DashboardView.vue'),
+      component: () => import('@/views/admin/AdminDashboard.vue'),
       meta: { title: '仪表盘', requiresAuth: true, requiresAdmin: true }
     },
     {

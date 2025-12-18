@@ -45,8 +45,30 @@ public class User {
     @TableField(value = "update_time", fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updateTime;
 
+    // 兼容性方法
+    public LocalDateTime getCreatedAt() {
+        return createTime;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createTime = createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updateTime;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updateTime = updatedAt;
+    }
+
     @TableField("last_login_time")
     private LocalDateTime lastLoginTime;
+
+    @TableField("deleted")
+    private Integer deleted;
+
+    // 兼容性方法
 
     public enum Role {
         USER("USER"),

@@ -1,44 +1,49 @@
 package com.example.blog.dto.response;
 
-import com.example.blog.entity.Article;
+import com.example.blog.entity.Tag;
 import lombok.Data;
+
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 public class ArticleDetailResponse {
 
-    private Article article;
+    private Long id;
 
-    private UserSummary author;
+    private String title;
 
-    private CategorySummary category;
+    private String content;
 
-    private List<TagSummary> tags;
+    private String summary;
 
-    private boolean isLiked;
+    private Long authorId;
 
-    private boolean canEdit;
+    private String authorName;
 
-    @Data
-    public static class UserSummary {
-        private Long id;
-        private String username;
-        private String nickname;
-        private String avatar;
-        private String bio;
-    }
+    private String authorAvatar;
 
-    @Data
-    public static class CategorySummary {
-        private Long id;
-        private String name;
-        private String description;
-    }
+    private Long categoryId;
 
-    @Data
-    public static class TagSummary {
-        private Long id;
-        private String name;
-        private String color;
+    private String categoryName;
+
+    private String status;
+
+    private Long viewCount;
+
+    private Long likeCount;
+
+    private Long commentCount;
+
+    private LocalDateTime createdAt;
+
+    private LocalDateTime updatedAt;
+
+    private List<Tag> tags;
+
+    public ArticleDetailResponse() {
+        this.viewCount = 0L;
+        this.likeCount = 0L;
+        this.commentCount = 0L;
     }
 }

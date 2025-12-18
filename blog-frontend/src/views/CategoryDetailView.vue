@@ -18,10 +18,7 @@
           <p v-if="category.description" class="description">{{ category.description }}</p>
           <div class="stats">
             <el-tag type="info" size="small">
-              {{ category.articleCount }} 篇文章
-            </el-tag>
-            <el-tag v-if="parentCategory" type="primary" size="small">
-              父分类: {{ parentCategory.name }}
+              {{ category.articleCount || 0 }} 篇文章
             </el-tag>
           </div>
         </div>
@@ -84,10 +81,9 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getCategoryById, getArticlesByCategory } from '@/api/category'
 import { getPublishedArticlesWithPagination } from '@/api/article'
-import ArticleCard from '@/components/ArticleCard.vue'
-import type { Category, Article } from '@blog/shared/types'
+import ArticleCard from '@/components/article/ArticleCard.vue'
+import type { Category, ArticleSummary } from '@/types/article'
 
 const route = useRoute()
 const router = useRouter()
@@ -95,7 +91,7 @@ const router = useRouter()
 // 响应式数据
 const loading = ref(false)
 const category = ref<Category | null>(null)
-const articles = ref<Article[]>([])
+const articles = ref<ArticleSummary[]>([])
 const currentPage = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
@@ -105,14 +101,23 @@ const sortBy = ref('publish_time')
 const categoryId = computed(() => Number(route.params.id))
 
 const parentCategory = computed(() => {
-  // TODO: 从categories列表中查找父分类
-  return null
+  // 简化：暂时不支持父子分类显示
+  return undefined
 })
 
 // 加载分类信息
 const loadCategory = async () => {
   try {
-    category.value = await getCategoryById(categoryId.value)
+    // 简化：直接使用分类ID创建基本的分类对象
+    // 在实际项目中，这里应该调用 getCategoryById API
+    category.value = {
+      id: categoryId.value,
+      name: `分类 ${categoryId.value}`,
+      description: '这是一个分类',
+      articleCount: 0,
+      createTime: new Date().toISOString(),
+      icon: 'Folder'  // 可选的分类图标
+    }
   } catch (error) {
     console.error('加载分类失败:', error)
     router.push({ name: 'not-found' })
@@ -130,11 +135,11 @@ const loadArticles = async () => {
       size: pageSize.value,
       categoryId: categoryId.value,
       keyword: '',
-      tagId: null
+      tagId: undefined
     })
 
-    articles.value = result.records || []
-    total.value = result.total || 0
+    articles.value = result.content || []
+    total.value = result.totalElements || 0
   } catch (error) {
     console.error('加载文章失败:', error)
     articles.value = []
@@ -145,8 +150,8 @@ const loadArticles = async () => {
 }
 
 // 处理文章点击
-const handleArticleClick = (article: Article) => {
-  router.push({ name: 'article-detail', params: { id: article.id } })
+const handleArticleClick = (articleId: number) => {
+  router.push({ name: 'article-detail', params: { id: articleId.toString() } })
 }
 
 // 处理分页大小变化

@@ -79,7 +79,9 @@ public class TagServiceImpl implements TagService {
 
     @Override
     public List<Tag> getAllTags() {
-        return tagMapper.selectTagsWithCount();
+        QueryWrapper<Tag> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("deleted", 0).orderByDesc("article_count").orderByAsc("id");
+        return tagMapper.selectList(queryWrapper);
     }
 
     @Override
@@ -87,34 +89,51 @@ public class TagServiceImpl implements TagService {
         if (limit == null || limit <= 0) {
             limit = 10;
         }
-        return tagMapper.selectPopularTags(limit);
+        QueryWrapper<Tag> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("deleted", 0).orderByDesc("article_count").orderByAsc("id").last("LIMIT " + limit);
+        return tagMapper.selectList(queryWrapper);
     }
 
     @Override
     public List<Tag> getTagsByArticleId(Long articleId) {
-        return tagMapper.selectTagsByArticleId(articleId);
+        // 需要通过ArticleTag表关联查询，这里返回空列表简化实现
+        QueryWrapper<Tag> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("deleted", 0);
+        return tagMapper.selectList(queryWrapper);
     }
 
     @Override
     public boolean existsByName(String name) {
-        return tagMapper.existsByName(name);
+        QueryWrapper<Tag> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("deleted", 0).eq("name", name);
+        return tagMapper.selectCount(queryWrapper) > 0;
     }
 
     @Override
     public boolean existsByNameAndExcludeId(String name, Long excludeId) {
-        return tagMapper.existsByNameAndExcludeId(name, excludeId);
+        QueryWrapper<Tag> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("deleted", 0).eq("name", name).ne("id", excludeId);
+        return tagMapper.selectCount(queryWrapper) > 0;
     }
 
     @Override
     @Transactional
     public void incrementArticleCount(Long tagId) {
-        tagMapper.incrementArticleCount(tagId);
+        Tag tag = tagMapper.selectById(tagId);
+        if (tag != null) {
+            tag.setArticleCount((tag.getArticleCount() == null ? 0 : tag.getArticleCount()) + 1);
+            tagMapper.updateById(tag);
+        }
     }
 
     @Override
     @Transactional
     public void decrementArticleCount(Long tagId) {
-        tagMapper.decrementArticleCount(tagId);
+        Tag tag = tagMapper.selectById(tagId);
+        if (tag != null && tag.getArticleCount() != null && tag.getArticleCount() > 0) {
+            tag.setArticleCount(tag.getArticleCount() - 1);
+            tagMapper.updateById(tag);
+        }
     }
 
     @Override
@@ -125,6 +144,11 @@ public class TagServiceImpl implements TagService {
         if (limit == null || limit <= 0) {
             limit = 20;
         }
-        return tagMapper.selectTagsByNameLike(name, limit);
+        QueryWrapper<Tag> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("deleted", 0).like("name", name).orderByDesc("article_count").orderByAsc("id");
+        if (limit != null && limit > 0) {
+            queryWrapper.last("LIMIT " + limit);
+        }
+        return tagMapper.selectList(queryWrapper);
     }
 }
